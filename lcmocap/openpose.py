@@ -1,5 +1,7 @@
 import os
 import sys
+import cv2
+import time
 from sys import platform
 
 try:
@@ -17,12 +19,49 @@ try:
             # Change these variables to point to the correct folder (Release/x64 etc.)
             # sys.path.append('../../python');
             # If you run `make install` (default path is `/usr/local/python` for Ubuntu), you can also access the OpenPose/python module from there. This will install OpenPose and the python library at your desired installation path. Ensure that this is in your python path in order to use it.
-            sys.path.append('/usr/local/python')
-            from openpose import pyopenpose as op
+            import pyopenpose as op
     
     except ImportError as e:
         print('Error: OpenPose library could not be found. Did you enable `BUILD_PYTHON` in CMake and have this Python script in the right folder?')
         raise e
+
+
+    params = dict()
+    params["model_folder"] = "../openpose/models/"
+    params["image_dir"] = "input/images/"
+    params["face"] = False
+    params["hand"] = True
+
+    imagePaths = op.get_images_on_directory("input/images/")
+    start = time.time()
+
+    # Process and display images
+    for imagePath in imagePaths:
+        # Startting Openpose
+        opWrapper = op.WrapperPython()
+        opWrapper.configure(params)
+        opWrapper.start()
+
+        datum = op.Datum()
+        imageToProcess = cv2.imread(imagePath)
+        datum.cvInputData = imageToProcess
+
+        opWrapper.emplaceAndPop(op.VectorDatum([datum]))
+
+        poseKeypoint = str(datum.poseKeypoints)
+        leftHandKeypoint = str(datum.handKeypoints[0])
+        rightHandKeypoint = str(datum.handKeypoints[1])
+
+
+        print("Body keypoints: \n" + poseKeypoint)
+        # print("Face keypoints: \n" + str(datum.faceKeypoints))
+        print("Left hand keypoints: \n" + leftHandKeypoint)
+        print("Right hand keypoints: \n" + rightHandKeypoint)
+    
+        cv2.imshow("OpenPose 1.7.0 - Tutorial Python API", datum.cvOutputData)
+        key = cv2.waitKey(0)
+        if key == 27: 
+            break
 
 except Exception as e:
     print(e)
