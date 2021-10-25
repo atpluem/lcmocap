@@ -1,0 +1,7 @@
+distro==1.6.0
+numpy==1.19.5
+opencv-python==4.5.4.58
+packaging==21.0
+pkg_resources==0.0.0
+pyparsing==3.0.1
+scikit-build==0.12.0
