@@ -21,7 +21,7 @@ coll_loss_weights:
 - 0.01
 - 1.0
 config: cfg_files/fit_smplx.yaml
-data_folder: ../lcmocap/input/
+data_folder: ../LCMocap/input
 data_weights:
 - 1
 - 1
@@ -101,7 +101,7 @@ max_collisions: 128
 max_persons: 3
 maxiters: 30
 mesh_folder: meshes
-model_folder: ../models/
+model_folder: ../models
 model_type: smplx
 num_gaussians: 8
 num_pca_comps: 12
@@ -134,4 +134,4 @@ use_joints_conf: true
 use_pca: true
 use_vposer: true
 visualize: true
-vposer_ckpt: ./vposer/
+vposer_ckpt: ./vposer
