@@ -1,0 +1,17 @@
+{
+    "python.analysis.extraPaths": [
+        "./lcmocap"
+    ],
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/.venv/**": true,
+        "**/.git/**": true,
+        },
+    "files.watcherExclude": {
+        "**/.git/**": true,
+        "**/.venv/**": true
+    },
+    "python.pythonPath": "${workspaceFolder}/.venv/bin/python"
+    
+}

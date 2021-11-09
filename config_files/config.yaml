@@ -1,0 +1,10 @@
+datasets:
+  mesh_folder:
+    source_folder: 'input/source_model'
+    target_folder: 'input/target_model'
+
+body_model:
+  model_type: 'smpl'
+  gender: 'neutral'
+  ext: 'pkl'
+  folder: '../models'
