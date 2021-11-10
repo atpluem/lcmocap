@@ -1,16 +1,18 @@
 from os import name
 from omegaconf import OmegaConf
 from dataclasses import dataclass
+from typing import Tuple, Optional
 
 @dataclass
 class MeshFolder:
-    source_folder: str = '../input/source_model'
-    target_folder: str = '../input/target_model'
+    mesh_folder: str = ''
 
 @dataclass
 class DatasetConfig:
+    num_workers: int = 0
     name: str = 'mesh-folder'
-    mesh_folder: MeshFolder = MeshFolder()
+    source_folder: MeshFolder = MeshFolder()
+    target_folder: MeshFolder = MeshFolder()
 
 @dataclass
 class BodyModel:
@@ -29,6 +31,10 @@ class Config:
     save_joints: bool = True
     save_mesh: bool = False
     logger_level: str = 'INFO'
+    batch_size: Optional[int] = 1
+
+    deformation_transfer_path: str = ''
+    mask_ids_fname: str = ''
 
     datasets: DatasetConfig = DatasetConfig()
     body_model: BodyModel = BodyModel()

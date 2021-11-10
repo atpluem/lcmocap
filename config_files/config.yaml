@@ -1,7 +1,8 @@
 datasets:
-  mesh_folder:
-    source_folder: 'input/source_model'
-    target_folder: 'input/target_model'
+  source_folder:
+    mesh_folder: 'input/source_model'
+  target_folder:
+    mesh_folder: 'input/target_model'
 
 body_model:
   model_type: 'smpl'
