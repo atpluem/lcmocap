@@ -19,6 +19,8 @@ def parse_args(argv=None) -> OmegaConf:
     cmd_args = parser.parse_args()
 
     cfg = default_conf.copy()
+    
+    # Load parameter from YAML then merge with default config
     if cmd_args.config:
         cfg.merge_with(OmegaConf.load(cmd_args.config))
     

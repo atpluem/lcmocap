@@ -1,6 +1,8 @@
+from functools import partial
 import os
 import os.path as osp
 import sys
+from numpy.lib.utils import source
 import torch
 import openpose as op
 import smplifyx as smx
@@ -11,20 +13,16 @@ from smplx import build_layer
 from config import parse_args
 from data import build_dataloader
 from retarget import run_fitting
+from camera import create_camera
 
 def main() -> None:
     
     # ===== Openpose API  =====
     # keypoints = op.openposeAPI()
 
-    # Read YAML config
+    # ===== Retargeting =====
+    # Read YAML config 
     config = parse_args()
-
-    # Defind CUDA tensor type
-    device = torch.device('cuda')
-    if not torch.cuda.is_available():
-        logger.error('CUDA is not available!')
-        sys.exit(3)
 
     # Initialize tqdm
     logger.remove()
@@ -40,20 +38,36 @@ def main() -> None:
     model_path = config.body_model.folder
     body_model = build_layer(model_path, **config.body_model)
     logger.info(body_model)
-    body_model = body_model.to(device=device)
+
+    # Create the camera object
+    camera = create_camera()
+    if hasattr(camera, 'rotation'):
+        camera.rotation.requires_grad = False
 
     # Dataloader
     data_obj_dict = build_dataloader(config)
-    dataloader = data_obj_dict['sourceloader']
-    
-    for ii, batch in enumerate(tqdm(dataloader)):
-        for key in batch:
-            if torch.is_tensor(batch[key]):
-                batch[key] = batch[key].to(device=device)
-        # Fitting
-        var_dict = run_fitting(config, batch, body_model)
-        path = batch['paths']
-            
+    source_mesh = data_obj_dict['source_pose']
+    target_mesh = data_obj_dict['target_pose']
+
+    # Set torch device
+    if config.use_cuda and torch.cuda.is_available():
+        device = torch.device('cuda')
+
+        camera = camera.to(device=device)
+        body_model = body_model.to(device=device)
+        # source_mesh = sApose.to(device=device)
+        # target_mesh = target_mesh.to(device=device)
+    else:
+        device = torch.device('cpu')
+
+
+    # Fitting
+    var_dict = run_fitting(config=config,
+                           source_mesh=source_mesh,
+                           target_mesh=target_mesh,
+                           body_model=body_model, 
+                           camera=camera,
+                           visualize=False)
 
 if __name__ == "__main__":
     main()

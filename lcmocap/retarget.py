@@ -1,13 +1,17 @@
 import sys
 import numpy as np
+from pyrender import light
 import torch
-from torch._C import dtype
 import torch.nn as nn
+import fitting
 
 from tqdm import tqdm
 from loguru import logger
 from typing import Optional, Dict, Callable
+from data import mesh
 from utils import (Tensor)
+from human_body_prior.tools.model_loader import load_vposer
+from mesh_viewer import MeshViewer as mv
 
 def get_variables(
     batch_size: int,
@@ -63,17 +67,21 @@ def get_variables(
 
 def run_fitting(
     config,
-    batch: Dict[str, Tensor],
-    body_model: nn.Module
+    source_mesh,
+    target_mesh,
+    camera,
+    body_model: nn.Module,
+    use_cuda=True,
+    batch_size=1,
+    dtype=torch.float32,
+    visualize=False
 ) -> Dict[str, Tensor]:
     '''
         Runs fitting
     '''
-    vertices = batch['vertices']
-    faces = batch['faces']
+    assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
 
-    batch_size = len(vertices)
-    dtype, device = vertices.dtype, vertices.device
+    device = torch.device('cuda') if use_cuda else torch.device('cpu')
 
     # Get the parameters from the model
     var_dict = get_variables(batch_size, body_model)
@@ -81,4 +89,16 @@ def run_fitting(
     # Build the optimizer object for the current batch
     optim = config.get('optim', {})
 
+    # Preprocess
     
+
+    with fitting.FittingMonitor() as monitor:
+        monitor.run_fitting()
+    
+    if visualize:
+        import trimesh
+        
+        mesh = trimesh.Trimesh(source_mesh['vertices'], 
+                               source_mesh['faces'], process=False)
+
+        mesh.show()

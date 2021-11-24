@@ -21,15 +21,17 @@ def build_dataloader(config):
     else:
         raise ValueError(f'Unknown dataset: {dset_name}')
 
-    batch_size = config.batch_size
-    num_workers = config.datasets.num_workers
+    # batch_size = config.batch_size
+    # num_workers = config.datasets.num_workers
     
-    logger.info(f'Creating dataloader with B={batch_size}, workers={num_workers}')
+    # logger.info(f'Creating dataloader with B={batch_size}, workers={num_workers}')
 
-    sourceloader = dutils.DataLoader(source_data, batch_size=batch_size,
-                                    num_workers=num_workers, shuffle=False)
-    targetloader = dutils.DataLoader(target_data, batch_size=batch_size,
-                                    num_workers=num_workers, shuffle=False)
+    # sourceloader = dutils.DataLoader(source_data, batch_size=batch_size,
+    #                                 num_workers=num_workers, shuffle=False)
+    # targetloader = dutils.DataLoader(target_data, batch_size=batch_size,
+    #                                 num_workers=num_workers, shuffle=False)
     
-    return {'sourceloader': sourceloader, 'source_data': source_data,
-            'targetloader': targetloader, 'target_data': target_data}
+    # return {'sourceloader': sourceloader, 'source_data': source_data,
+    #         'targetloader': targetloader, 'target_data': target_data}
+
+    return {'source_pose': source_data[0], 'target_pose': target_data[0]}
