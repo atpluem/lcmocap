@@ -13,7 +13,7 @@ def parse_args(argv=None) -> OmegaConf:
     parser = argparse.ArgumentParser(formatter_class=arg_formatter,
                                     description=description)
 
-    parser.add_argument('--cfg', type=str, dest='config',
+    parser.add_argument('--config', type=str, dest='config',
                         help='The configuration of retargeting')
 
     cmd_args = parser.parse_args()

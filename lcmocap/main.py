@@ -12,7 +12,7 @@ from loguru import logger
 from smplx import build_layer
 from config import parse_args
 from data import build_dataloader
-from retarget import run_fitting
+from retarget import run_retarget
 from camera import create_camera
 
 def main() -> None:
@@ -61,13 +61,11 @@ def main() -> None:
         device = torch.device('cpu')
 
 
-    # Fitting
-    var_dict = run_fitting(config=config,
-                           source_mesh=source_mesh,
-                           target_mesh=target_mesh,
-                           body_model=body_model, 
-                           camera=camera,
-                           visualize=False)
+    # Fitting Retarget
+    run_retarget(config=config,
+                source_mesh=source_mesh,
+                target_mesh=target_mesh,
+                visualize=False)
 
 if __name__ == "__main__":
     main()

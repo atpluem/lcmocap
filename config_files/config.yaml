@@ -9,3 +9,6 @@ body_model:
   gender: 'neutral'
   ext: 'pkl'
   folder: '../models'
+
+body_part_segm:
+  smpl_path: 'config_files/smpl_vert_segmentation.json'

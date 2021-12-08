@@ -18,6 +18,11 @@ class DatasetConfig:
     target_folder: MeshFolder = MeshFolder()
 
 @dataclass
+class BodyPartSegm:
+    name: str = 'body-part segmentation path'
+    smpl_path: str = ''
+
+@dataclass
 class Config:
     use_cuda: bool = False
     log_file: str = '/tmp/logs'
@@ -27,10 +32,11 @@ class Config:
     save_mesh: bool = False
     logger_level: str = 'INFO'
     batch_size: Optional[int] = 1
-
+    
     optim: OptimConfig = optim_cfg
     datasets: DatasetConfig = DatasetConfig()
     body_model: BodyModelConfig = body_model_cfg
+    body_part_segm: BodyPartSegm = BodyPartSegm()
 
     deformation_transfer_path: str = ''
     mask_ids_fname: str = ''

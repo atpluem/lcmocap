@@ -4,6 +4,7 @@ body_pose_prior_weights:
 - 404.0
 - 57.4
 - 4.78
+- 4.78
 body_prior_type: l2
 body_tri_idxs:
 - !!python/tuple
@@ -16,15 +17,17 @@ camera_type: persp
 coll_loss_weights:
 - 0.0
 - 0.0
+- 0.0
 - 0.01
 - 1.0
-config: cfg_files/fit_smpl.yaml
+config: cfg_files/fit_smplx.yaml
 data_folder: ../lcmocap/input/
 data_weights:
-- 1.0
-- 1.0
-- 1.0
-- 1.0
+- 1
+- 1
+- 1
+- 1
+- 1
 dataset: openpose
 degrees:
 - 0
@@ -38,7 +41,9 @@ expr_weights:
 - 50.0
 - 10.0
 - 5.0
+- 5.0
 face_joints_weights:
+- 0.0
 - 0.0
 - 0.0
 - 0.0
@@ -54,12 +59,14 @@ hand_joints_weights:
 - 0.0
 - 0.0
 - 0.0
+- 0.1
 - 2.0
 hand_pose_prior_weights:
-- 100.0
-- 50.0
-- 10.0
-- 5.0
+- 404.0
+- 404.0
+- 57.4
+- 4.78
+- 4.78
 ign_part_pairs:
 - 9,16
 - 9,17
@@ -75,7 +82,12 @@ init_joints_idxs:
 - 5
 interactive: true
 interpenetration: true
-jaw_pose_prior_weights: null
+jaw_pose_prior_weights:
+- 4.04e03,4.04e04,4.04e04
+- 4.04e03,4.04e04,4.04e04
+- 574,5740,5740
+- 47.8,478,478
+- 47.8,478,478
 jaw_prior_type: l2
 joints_to_ign:
 - 1
@@ -90,7 +102,7 @@ max_persons: 3
 maxiters: 30
 mesh_folder: meshes
 model_folder: ../models/
-model_type: smpl
+model_type: smplx
 num_gaussians: 8
 num_pca_comps: 12
 optim_expression: true
@@ -98,7 +110,7 @@ optim_hands: true
 optim_jaw: true
 optim_shape: true
 optim_type: lbfgsls
-part_segm_fn: ''
+part_segm_fn: smplx_parts_segm.pkl
 penalize_outside: true
 point2plane: false
 prior_folder: priors
@@ -111,12 +123,13 @@ shape_weights:
 - 50.0
 - 10.0
 - 5.0
+- 5.0
 side_view_thsh: 25
 summary_folder: summaries
 use_cuda: true
-use_face: false
+use_face: true
 use_face_contour: false
-use_hands: false
+use_hands: true
 use_joints_conf: true
 use_pca: true
 use_vposer: true

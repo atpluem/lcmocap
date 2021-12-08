@@ -1,104 +1,231 @@
 import sys
 import numpy as np
+from numpy.lib.arraysetops import unique
+from numpy.lib.twodim_base import tri
+from numpy.lib.utils import source
 from pyrender import light
 import torch
 import torch.nn as nn
 import fitting
+import trimesh
+import networkx as nx
+import json
 
 from tqdm import tqdm
 from loguru import logger
-from typing import Optional, Dict, Callable
+from typing import Optional, Dict, Callable, Union
 from data import mesh
 from utils import (Tensor)
 from human_body_prior.tools.model_loader import load_vposer
 from mesh_viewer import MeshViewer as mv
 
-def get_variables(
-    batch_size: int,
-    body_model: nn.Module,
-    dtype: torch.dtype = torch.float32
-) -> Dict[str, Tensor]:
-    var_dict = {}
-
-    device = next(body_model.buffers()).device
-
-    if (body_model.name() == 'SMPL' or body_model.name() == 'SMPL+H' or
-            body_model.name() == 'SMPL-X'):
-        var_dict.update({
-            'transl': torch.zeros(
-                [batch_size, 3], device=device, dtype=dtype),
-            'global_orient': torch.zeros(
-                [batch_size, 1, 3], device=device, dtype=dtype),
-            'body_pose': torch.zeros(
-                [batch_size, body_model.NUM_BODY_JOINTS, 3],
-                device=device, dtype=dtype),
-            'betas': torch.zeros([batch_size, body_model.num_betas],
-                                 dtype=dtype, device=device),
-        })
-
-    if body_model.name() == 'SMPL+H' or body_model.name() == 'SMPL-X':
-        var_dict.update(
-            left_hand_pose=torch.zeros(
-                [batch_size, body_model.NUM_HAND_JOINTS, 3], device=device,
-                dtype=dtype),
-            right_hand_pose=torch.zeros(
-                [batch_size, body_model.NUM_HAND_JOINTS, 3], device=device,
-                dtype=dtype),
-        )
-
-    if body_model.name() == 'SMPL-X':
-        var_dict.update(
-            jaw_pose=torch.zeros([batch_size, 1, 3],
-                                 device=device, dtype=dtype),
-            leye_pose=torch.zeros([batch_size, 1, 3],
-                                  device=device, dtype=dtype),
-            reye_pose=torch.zeros([batch_size, 1, 3],
-                                  device=device, dtype=dtype),
-            expression=torch.zeros(
-                [batch_size, body_model.num_expression_coeffs],
-                device=device, dtype=dtype),
-        )
-
-    # Toggle gradients to True
-    for key, val in var_dict.items():
-        val.requires_grad_(True)
-
-    return var_dict
-
-def run_fitting(
+def run_retarget(
     config,
     source_mesh,
     target_mesh,
-    camera,
-    body_model: nn.Module,
     use_cuda=True,
     batch_size=1,
-    dtype=torch.float32,
     visualize=False
 ) -> Dict[str, Tensor]:
-    '''
-        Runs fitting
-    '''
-    assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
+    
+    ##############################################################
+    ##                  Parameter setting                       ##
+    ##############################################################
 
+    assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
     device = torch.device('cuda') if use_cuda else torch.device('cpu')
 
-    # Get the parameters from the model
-    var_dict = get_variables(batch_size, body_model)
+    ''' 
+        Parameters weighting (g: gamma)
+        Energy term: gshape, gvol, gc
+        Contact term: gr, ga
+        Ground contact: grg, gag
+        Offset weight: epsilon
+    '''
+    gshape = gvol = gc = 1
+    gr = ga = 1
+    grg = gag = 0.1
+    eps = 0.3
 
-    # Build the optimizer object for the current batch
-    optim = config.get('optim', {})
+    # with fitting.FittingMonitor() as monitor:
+        # monitor.run_fitting()
+        # monitor.get_LaplacianMatrixUmbrella(source_vertices, source_faces)
+        # monitor.get_LaplacianMatrixCotangent(source_vertices, source_faces)
 
-    # Preprocess
+    vertices = source_mesh['vertices']
+    faces = source_mesh['faces']
+
+    ##############################################################
+    ##                  Local Shape Fidelity                    ##
+    ##############################################################
+
+    offsetSource = getLaplacianOffset(source_mesh['vertices'], source_mesh['faces'])
+    offsetTarget = getLaplacianOffset(target_mesh['vertices'], target_mesh['faces'])
+
+    EShape = getShapeEnergy(offsetSource, offsetTarget)
+    vHat = getOptimalPosition(source_mesh['vertices'], source_mesh['faces'],
+                                    offsetSource, offsetTarget)
+
+
+    ##############################################################
+    ##                  Volume Preservation                     ##
+    ##############################################################
+
+    ''' SMPL body part segmentation (24 parts 7390 unit)
+        -----
+        leftHand        324 rightHand       324
+        leftUpLeg       254 rightUpLeg      254 // 
+        leftArm         284 rightArm        284
+        leftLeg         217 rightLeg        217 //
+        leftToeBase     122 rightToeBase    122 
+        leftFoot        143 rightFoot       143
+        leftShoulder    151 rightShoulder   151
+        leftHandIndex1  478 rightHandIndex1 478
+        leftForeArm     246 rightForeArm    246 //
+        spine           233     //
+        spine1          267     //
+        spine2          615     //
+        head            1194
+        neck            156
+        hips            487     //
+
+        Paper 17 parts
+        -----
+        head + neck     Hand + HandIndex1
+        Shoulder + Arm  Foot + ToeBase
+    '''
+    # Read JSON segmentation file
+    segm_path = config.body_part_segm.smpl_path
+    with open(segm_path) as json_file:
+        smpl_segm = json.load(json_file)
+
+    # Union parts (24 -> 17)
+    head_segm = list(set.union(set(smpl_segm['head']), set(smpl_segm['neck'])))
+    leftHand_segm = list(set.union(set(smpl_segm['leftHand']), set(smpl_segm['leftHandIndex1'])))
+    rightHand_segm = list(set.union(set(smpl_segm['rightHand']), set(smpl_segm['rightHandIndex1'])))
+    leftArm_segm = list(set.union(set(smpl_segm['leftShoulder']), set(smpl_segm['leftArm'])))
+    rightArm_segm = list(set.union(set(smpl_segm['rightShoulder']), set(smpl_segm['rightArm'])))
+    leftFoot_segm = list(set.union(set(smpl_segm['leftFoot']), set(smpl_segm['leftToeBase'])))
+    rightFoot_segm = list(set.union(set(smpl_segm['rightFoot']), set(smpl_segm['rightToeBase'])))
+
+    # Create seams
+    leftArm_coor = getSeamCoor(vertices, faces, list(set(leftArm_segm) & set(smpl_segm['leftForeArm'])))
     
 
-    with fitting.FittingMonitor() as monitor:
-        monitor.run_fitting()
-    
+
+    ##############################################################
+    ##                      Contacts                            ##
+    ##############################################################
+
+
+
+    ##############################################################
+    ##                 Iterative Solving                        ##
+    ##############################################################
+
+    # newVertices = vertices + eps*(vHat)
+
     if visualize:
-        import trimesh
-        
-        mesh = trimesh.Trimesh(source_mesh['vertices'], 
+        mesh = trimesh.Trimesh(vertices, 
                                source_mesh['faces'], process=False)
 
         mesh.show()
+
+
+def getLaplacianOffset(vertices, faces):
+        
+    N = vertices.shape[0]
+    M = faces.shape[0] 
+
+    mesh = trimesh.Trimesh(vertices, faces)
+    graph = nx.from_edgelist(mesh.edges_unique)
+    neighbors = [list(graph[i].keys()) for i in range(N)]    
+    neighbors = np.array(neighbors)
+    
+    offset = np.zeros((N, 3))
+    for i in range(N):
+        indice = len(neighbors[i])
+        for j in range(indice):
+            offset[i] = offset[i] + (vertices[neighbors[i][j]]/indice - vertices[i])
+
+    return offset
+    
+def getShapeEnergy(offsetSource, offsetTarget):
+
+    EShape = []
+    for i in range(offsetSource.shape[0]):
+        EShape = (offsetSource[i] - offsetTarget)**2
+
+    return EShape
+
+def getOptimalPosition(vertices, faces, offsetSource, offsetTarget):
+    
+    N = vertices.shape[0]
+    mesh = trimesh.Trimesh(vertices, faces)
+    graph = nx.from_edgelist(mesh.edges_unique)
+    neighbors = [list(graph[i].keys()) for i in range(N)]    
+    neighbors = np.array(neighbors)
+
+    newVertices = np.zeros((N, 3))
+    for i in range(N):
+        indice = len(neighbors[i])
+        for j in range(indice):
+            newVertices[i] = newVertices[i] + (vertices[neighbors[i][j]]/indice) \
+                            - (   offsetTarget[i][0]*offsetSource[i][0] \
+                                + offsetTarget[i][1]*offsetSource[i][1] \
+                                + offsetTarget[i][2]*offsetSource[i][2])
+
+    return newVertices
+
+def getSeamCoor(vertices, faces, vseam):
+
+    # coordinate of centroid
+    centroid = np.zeros(3)
+    triangles = []
+
+    # Find centroid and neighbors between each vertices
+    for count, vertex in enumerate(vseam):
+        centroid[0] += vertices[vertex][0]
+        centroid[1] += vertices[vertex][1]
+        centroid[2] += vertices[vertex][2]
+
+        neighbors = set()
+        # Find neighbors in all triangle face
+        for triangle in faces:
+            if vertex in triangle and len(set(vseam) & set(triangle)) == 2:
+                neighbors.update(set(vseam) & set(triangle))
+
+        # Create triangle of seam 
+        for count, v in enumerate(neighbors):
+            tri_seam = []
+            if v != vertex:
+                tri_seam.append(vertex)
+                tri_seam.append(v)
+                tri_seam.append(-1)
+                triangles.append(tri_seam)
+    
+    tri_list = list(set([tuple(sorted(x)) for x in triangles]))
+    centroid /= len(vseam)
+
+    # Get coordinate from vertice id
+    coor = []
+    for triangle in tri_list:
+        point = []
+        point.append(centroid)
+        point.append(vertices[triangle[1]])
+        point.append(vertices[triangle[2]])
+        coor.append(np.array(point))
+
+    return np.array(coor)
+        
+def getSignedVolume(pi, pj, pk):
+    vkji = pk[0]*pj[1]*pi[2]
+    vjki = pj[0]*pk[1]*pi[2]
+    vkij = pk[0]*pi[1]*pj[2]
+    vikj = pi[0]*pk[1]*pj[2]
+    vjik = pj[0]*pi[1]*pk[2]
+    vijk = pi[0]*pj[1]*pk[2]
+    return (1.0/6.0) * (-vkji+vjki+vkij-vikj-vjik+vijk)
+
+def getMeshVolume():
+    print(1)
