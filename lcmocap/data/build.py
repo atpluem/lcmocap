@@ -13,10 +13,12 @@ def build_dataloader(config):
 
     if dset_name == 'mesh-folder':
         source_folder = config.datasets.source_folder
+        source_std_folder = config.datasets.source_std_folder
         target_folder = config.datasets.target_folder
         logger.info(source_folder.pretty())
         logger.info(target_folder.pretty())
         source_data = MeshFolder(**source_folder)
+        source_std_data = MeshFolder(**source_std_folder)
         target_data = MeshFolder(**target_folder)
     else:
         raise ValueError(f'Unknown dataset: {dset_name}')
@@ -34,4 +36,5 @@ def build_dataloader(config):
     # return {'sourceloader': sourceloader, 'source_data': source_data,
     #         'targetloader': targetloader, 'target_data': target_data}
 
-    return {'source_pose': source_data[0], 'target_pose': target_data[0]}
+    return {'source_pose': source_data[0], 'source_std_pose': source_std_data[0],
+            'target_pose': target_data[0]}

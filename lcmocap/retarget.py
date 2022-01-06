@@ -1,30 +1,29 @@
 import sys
+from networkx.algorithms.cluster import triangles
 import numpy as np
-from numpy.core.fromnumeric import mean
-from numpy.lib.arraysetops import unique
-from numpy.lib.twodim_base import tri
-from numpy.lib.utils import source
 from pyrender import light
 import torch
 import torch.nn as nn
-import fitting
+import smplifyx.fitting as fitting
 import trimesh
 import networkx as nx
 import json
 
+from tkinter import *
 from tqdm import tqdm
 from loguru import logger
 from typing import Optional, Dict, Callable, Union
 from data import mesh
 from utils import (Tensor)
 from human_body_prior.tools.model_loader import load_vposer
-from mesh_viewer import MeshViewer as mv
-from shape import getShapeOffset
-from volume import getVolumes
+from smplifyx.mesh_viewer import MeshViewer as mv
+from shape import *
+from volume import *
 
 def run_retarget(
     config,
     source_mesh,
+    source_std_mesh,
     target_mesh,
     use_cuda=True,
     batch_size=1,
@@ -50,50 +49,106 @@ def run_retarget(
     grg = gag = 0.1
     eps = 0.3
 
-    # with fitting.FittingMonitor() as monitor:
-        # monitor.run_fitting()
-        # monitor.get_LaplacianMatrixUmbrella(source_vertices, source_faces)
-        # monitor.get_LaplacianMatrixCotangent(source_vertices, source_faces)
-
     ##############################################################
     ##                  Local Shape Fidelity                    ##
     ##############################################################
     
-
-    # offsetSource = getShapeOffset(source_mesh['vertices'], source_mesh['faces'])
-    # offsetTarget = getShapeOffset(source_mesh['vertices'], source_mesh['faces'])
+    # nbSource = getNeighbors(source_mesh['vertices'], source_mesh['faces'])
+    # nbTarget = getNeighbors(target_mesh['vertices'], target_mesh['faces'])
+    # offsetSource = getLaplacianOffset(source_mesh['vertices'], nbSource)
+    # offsetTarget = getLaplacianOffset(target_mesh['vertices'], nbTarget)
     
     # EShape = getShapeEnergy(offsetSource, offsetTarget)
-    # vHat = getOptimalPosition(source_mesh['vertices'], source_nb, offsetSource, offsettarget)
-
+    # shapeDirection = getShapeDirection(vsource, nbSource, offsetSource, offsetTarget)
+    
 
     ##############################################################
     ##                  Volume Preservation                     ##
     ##############################################################
 
+    # smpl_segm = getPartSegm(config)
+    # source_vol = getVolumes(config, source_mesh['vertices'], source_mesh['faces'], smpl_segm)
+    # target_vol = getVolumes(config, target_mesh['vertices'], target_mesh['faces'], smpl_segm)
 
-    source_vol = getVolumes(config, source_mesh['vertices'], source_mesh['faces'])
-    target_vol = getVolumes(config, target_mesh['vertices'], target_mesh['faces'])
+    # EVol = getVolumeEnergy(source_vol, target_vol)
+    # volumeDirection = getVolumeDirection(source_vol, target_vol, offsetSource, smpl_segm)
 
-    EVol = getVolumeEnergy(source_vol, target_vol)
-    print(EVol)
 
     ##############################################################
     ##                      Contacts                            ##
     ##############################################################
 
+
+    ##############################################################
+    ##                    Mesh Rotation                         ##
+    ##############################################################
     
+    # from numpy import sin, cos
+    # from itertools import combinations, product
+    # import matplotlib.pyplot as plt
+    # theta = np.radians(30)
+    # d = [-2, 2]
+    # fig = plt.figure()
+    # ax = fig.gca(projection='3d')
+    # ax.set_aspect("auto")
+    # ax.set_autoscale_on(True)
+
+    # for id in smpl_segm['head']:
+    #     vsource[id] = [vsource[id][0]*cos(theta) - vsource[id][1]*sin(theta),
+    #                    vsource[id][0]*sin(theta) + vsource[id][1]*cos(theta),
+    #                    vsource[id][2]] 
+    # plt.show()
 
     ##############################################################
     ##                 Iterative Solving                        ##
     ##############################################################
 
+    vsource = source_mesh['vertices']
+    vsoutceStd = source_std_mesh['vertices']
+    vtarget = target_mesh['vertices']
+    fsource = source_mesh['faces']
+    ftarget = target_mesh['faces']
+    
+    smpl_segm = getPartSegm(config)
+
+    source_height = getHight(vsoutceStd)
+    target_height = getHight(vtarget)
+    vsource = setScale(vsource, target_height/source_height)
+
+    nbSource = getNeighbors(vsource, fsource)
+    nbTarget = getNeighbors(vtarget, ftarget)
+
+    offsetTarget = getLaplacianOffset(vtarget, nbTarget)
+    target_vol = getVolumes(vtarget, ftarget, smpl_segm)
+    
+    # for i in range(1):
+    #     offsetSource = getLaplacianOffset(vsource, nbSource)
+    #     shapeDirection = getShapeDirection(vsource, nbSource, offsetSource, offsetTarget)
+    #     EShape = getShapeEnergy(offsetSource, offsetTarget)
+
+    #     source_vol = getVolumes(vsource, fsource, smpl_segm)
+    #     volumeDirection = getVolumeDirection(source_vol, target_vol, offsetSource, smpl_segm)
+    #     EVol = getVolumeEnergy(source_vol, target_vol)
+
+    #     vsource += eps*(shapeDirection + volumeDirection)
 
     if visualize:
-        mesh = trimesh.Trimesh(source_mesh['vertices'], 
-                               source_mesh['faces'], process=False)
-
+        mesh = trimesh.Trimesh(vsource, fsource, process=False)
         mesh.show()
+        # import matplotlib.pyplot as plt
+        # from mpl_toolkits.mplot3d import Axes3D
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # ax = Axes3D(fig)
+        # ax = ax.plot_trisurf(vsource[:,0], vsource[:,1], triangles=fsource, Z=vsource[:,2])
+        # plt.show()
+
+def setScale(vsource, scale):
+    vsource *= scale
+    return vsource
+
+def getHight(vertices):
+    return max(vertices[:,1]) - min(vertices[:,1])
 
 def getShapeEnergy(offsetSource, offsetTarget):
     EShape = np.zeros(3)

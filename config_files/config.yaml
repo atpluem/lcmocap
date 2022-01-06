@@ -1,6 +1,8 @@
 datasets:
   source_folder:
     mesh_folder: 'input/source_model'
+  source_std_folder:
+    mesh_folder: 'input/source_standard_model'
   target_folder:
     mesh_folder: 'input/target_model'
 

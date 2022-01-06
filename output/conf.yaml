@@ -20,7 +20,7 @@ coll_loss_weights:
 - 0.0
 - 0.01
 - 1.0
-config: cfg_files/fit_smplx.yaml
+config: smplifyx/cfg_files/fit_smplx.yaml
 data_folder: ../lcmocap/input/
 data_weights:
 - 1
@@ -110,7 +110,7 @@ optim_hands: true
 optim_jaw: true
 optim_shape: true
 optim_type: lbfgsls
-part_segm_fn: smplx_parts_segm.pkl
+part_segm_fn: smplifyx/smplx_parts_segm.pkl
 penalize_outside: true
 point2plane: false
 prior_folder: priors
@@ -134,4 +134,4 @@ use_joints_conf: true
 use_pca: true
 use_vposer: true
 visualize: true
-vposer_ckpt: ./vposer/
+vposer_ckpt: ./smplifyx/vposer/

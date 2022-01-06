@@ -5,7 +5,7 @@ import sys
 from numpy.lib.utils import source
 import torch
 import openpose as op
-import smplifyx as smx
+import smplifyx.smplifyx as smx
 
 from tqdm import tqdm
 from loguru import logger
@@ -13,7 +13,7 @@ from smplx import build_layer
 from config import parse_args
 from data import build_dataloader
 from retarget import run_retarget
-from camera import create_camera
+from smplifyx.camera import create_camera
 
 def main() -> None:
     
@@ -39,31 +39,16 @@ def main() -> None:
     body_model = build_layer(model_path, **config.body_model)
     logger.info(body_model)
 
-    # Create the camera object
-    camera = create_camera()
-    if hasattr(camera, 'rotation'):
-        camera.rotation.requires_grad = False
-
     # Dataloader
     data_obj_dict = build_dataloader(config)
     source_mesh = data_obj_dict['source_pose']
+    source_std_mesh = data_obj_dict['source_std_pose']
     target_mesh = data_obj_dict['target_pose']
-
-    # Set torch device
-    if config.use_cuda and torch.cuda.is_available():
-        device = torch.device('cuda')
-
-        camera = camera.to(device=device)
-        body_model = body_model.to(device=device)
-        # source_mesh = sApose.to(device=device)
-        # target_mesh = target_mesh.to(device=device)
-    else:
-        device = torch.device('cpu')
-
 
     # Fitting Retarget
     run_retarget(config=config,
                 source_mesh=source_mesh,
+                source_std_mesh=source_std_mesh,
                 target_mesh=target_mesh,
                 visualize=False)
 

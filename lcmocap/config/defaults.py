@@ -15,6 +15,7 @@ class DatasetConfig:
     num_workers: int = 0
     name: str = 'mesh-folder'
     source_folder: MeshFolder = MeshFolder()
+    source_std_folder: MeshFolder = MeshFolder()
     target_folder: MeshFolder = MeshFolder()
 
 @dataclass
