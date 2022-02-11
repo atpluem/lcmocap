@@ -26,8 +26,8 @@ def getShapeDirection(vertices, neighbors, offsetSource, offsetTarget):
         for indice in range(indices):
             sDirection[id] += (vertices[neighbors[id][indice]]/indices)
         sDirection[id] -= (offsetTarget[id][0]*offsetSource[id][0] \
-                         + offsetTarget[id][1]*offsetSource[id][1] \
-                         + offsetTarget[id][2]*offsetSource[id][2])
+                        + offsetTarget[id][1]*offsetSource[id][1] \
+                        + offsetTarget[id][2]*offsetSource[id][2])
     return sDirection
 
 def get_LaplacianMatrixUmbrella(vertices, faces):

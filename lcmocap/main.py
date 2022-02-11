@@ -5,22 +5,28 @@ import sys
 from numpy.lib.utils import source
 import torch
 import openpose as op
-import smplifyx.smplifyx as smx
 
 from tqdm import tqdm
 from loguru import logger
-from smplx import build_layer
+# from smplx import build_layer
 from config import parse_args
 from data import build_dataloader
 from retarget import run_retarget
-from smplifyx.camera import create_camera
 
 def main() -> None:
     
-    # ===== Openpose API  =====
+    ##############################################################
+    ##                     Openpose API                         ##
+    ##############################################################
+
     # keypoints = op.openposeAPI()
 
     # ===== Retargeting =====
+
+    ##############################################################
+    ##                     Retargeting                          ##
+    ##############################################################
+
     # Read YAML config 
     config = parse_args()
 
@@ -35,21 +41,28 @@ def main() -> None:
     os.makedirs(output_folder, exist_ok=True)
 
     # Build layer of template model (SMPL, SMPLX, ...)
-    model_path = config.body_model.folder
-    body_model = build_layer(model_path, **config.body_model)
-    logger.info(body_model)
+    # model_path = config.body_model.folder
+    # body_model = build_layer(model_path, **config.body_model)
+    # logger.info(body_model)
 
     # Dataloader
     data_obj_dict = build_dataloader(config)
-    source_mesh = data_obj_dict['source_pose']
-    source_std_mesh = data_obj_dict['source_std_pose']
-    target_mesh = data_obj_dict['target_pose']
+    ''' Load Meshs '''
+    # source_mesh = data_obj_dict['source_pose']
+    # source_std_mesh = data_obj_dict['source_std_pose']
+    # target_mesh = data_obj_dict['target_pose']
+    ''' Load BVH '''
+    # source_bvh = data_obj_dict['']
+    ''' Load FBX '''
+    src_fbx_path = data_obj_dict['src_fbx_path']
+    dest_fbx_path = data_obj_dict['dest_fbx_path']
 
     # Fitting Retarget
     run_retarget(config=config,
-                source_mesh=source_mesh,
-                source_std_mesh=source_std_mesh,
-                target_mesh=target_mesh,
+                pkl='input/source_model/000.pkl',
+                src_path=src_fbx_path['fbx_path'],
+                dest_path=dest_fbx_path['fbx_path'],
+                out_path=output_folder,
                 visualize=False)
 
 if __name__ == "__main__":

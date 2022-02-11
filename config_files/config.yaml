@@ -1,10 +1,18 @@
 datasets:
-  source_folder:
+  src_mesh_dir:
     mesh_folder: 'input/source_model'
-  source_std_folder:
+  src_std_mesh_dir:
     mesh_folder: 'input/source_standard_model'
-  target_folder:
+  dest_mesh_dir:
     mesh_folder: 'input/target_model'
+  src_bvh_dir:
+    bvh_folder: 'input/source_model'
+  dest_bvh_dir:
+    bvh_folder: 'input/target_model'
+  src_fbx_dir:
+    fbx_folder: 'input/source_model'
+  dest_fbx_dir:
+    fbx_folder: 'input/target_model'
 
 body_model:
   model_type: 'smpl'

@@ -6,10 +6,10 @@ import os.path as osp
 import numpy as np
 from psbody.mesh import Mesh
 import trimesh
+import logging
 
 from torch.utils.data import Dataset
 from loguru import logger
-
 
 class MeshFolder(Dataset):
     def __init__(
@@ -21,6 +21,11 @@ class MeshFolder(Dataset):
         ''' Dataset similar to ImageFolder that reads meshes with the same
             topology
         '''
+
+        # Turn the trimesh warning off
+        logger = logging.getLogger('trimesh')
+        logger.setLevel(logging.ERROR)
+
         if exts is None:
             exts = ['.obj', '.ply']
 

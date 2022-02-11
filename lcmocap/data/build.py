@@ -1,4 +1,5 @@
 import sys
+from traceback import print_tb
 from numpy.lib.utils import source
 import torch
 import torch.utils.data as dutils
@@ -7,19 +8,35 @@ from typing import List, Tuple
 from loguru import logger
 from torch.utils.data import dataset
 from .mesh import MeshFolder
+from .bvh import BVHFolder
+from .fbx import FBXFolder
 
 def build_dataloader(config):
     dset_name = config.datasets.name
 
-    if dset_name == 'mesh-folder':
-        source_folder = config.datasets.source_folder
-        source_std_folder = config.datasets.source_std_folder
-        target_folder = config.datasets.target_folder
-        logger.info(source_folder.pretty())
-        logger.info(target_folder.pretty())
-        source_data = MeshFolder(**source_folder)
-        source_std_data = MeshFolder(**source_std_folder)
-        target_data = MeshFolder(**target_folder)
+    if dset_name == 'data-folder':
+        ''' Load Meshs '''
+        # source_folder = config.datasets.src_mesh_dir
+        # source_std_folder = config.datasets.src_std_mesh_dir
+        # target_folder = config.datasets.dest_mesh_dir
+        # logger.info(source_folder.pretty())
+        # logger.info(source_std_folder.pretty())
+        # logger.info(target_folder.pretty())
+        # source_data = MeshFolder(**source_folder)
+        # source_std_data = MeshFolder(**source_std_folder)
+        # target_data = MeshFolder(**target_folder)
+        ''' Load BVH '''
+        # source_folder = config.datasets.src_bvh_dir
+        # target_folder = config.datasets.dest_bvh_dir
+        # logger.info(source_folder.pretty())
+        # logger.info(target_folder.pretty())
+        # source_bvh = BVHFolder(**source_folder)
+        ''' Load FBX '''
+        source_folder = config.datasets.src_fbx_dir
+        target_folder = config.datasets.dest_fbx_dir
+        source_fbx = FBXFolder(**source_folder)
+        target_fbx = FBXFolder(**target_folder)
+
     else:
         raise ValueError(f'Unknown dataset: {dset_name}')
 
@@ -36,5 +53,6 @@ def build_dataloader(config):
     # return {'sourceloader': sourceloader, 'source_data': source_data,
     #         'targetloader': targetloader, 'target_data': target_data}
 
-    return {'source_pose': source_data[0], 'source_std_pose': source_std_data[0],
-            'target_pose': target_data[0]}
+    return {'src_fbx_path': source_fbx[0], 'dest_fbx_path': target_fbx[0]}
+
+    

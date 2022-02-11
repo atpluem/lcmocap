@@ -11,12 +11,27 @@ class MeshFolder:
     mesh_folder: str = ''
 
 @dataclass
+class BVHFolder:
+    bvh_folder: str = ''
+
+@dataclass
+class FBXFolder:
+    fbx_folder: str = ''
+
+@dataclass
 class DatasetConfig:
     num_workers: int = 0
-    name: str = 'mesh-folder'
-    source_folder: MeshFolder = MeshFolder()
-    source_std_folder: MeshFolder = MeshFolder()
-    target_folder: MeshFolder = MeshFolder()
+    name: str = 'data-folder'
+    # mesh directory
+    src_mesh_dir: MeshFolder = MeshFolder()
+    src_std_mesh_dir: MeshFolder = MeshFolder()
+    dest_mesh_dir: MeshFolder = MeshFolder()
+    # bvh directory
+    src_bvh_dir: BVHFolder = BVHFolder()
+    dest_bvh_dir: BVHFolder = BVHFolder()
+    # fbx folder
+    src_fbx_dir: FBXFolder = FBXFolder()
+    dest_fbx_dir: FBXFolder = FBXFolder()
 
 @dataclass
 class BodyPartSegm:
