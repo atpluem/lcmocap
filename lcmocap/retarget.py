@@ -3,6 +3,7 @@ import imp
 import sys
 from tkinter.tix import Tree
 from traceback import print_tb
+from unittest import result
 from matplotlib import markers, projections
 from matplotlib.pyplot import axis
 from mpl_toolkits.mplot3d import Axes3D
@@ -17,6 +18,7 @@ import pickle
 import matplotlib.pyplot as plt
 import pandas as pd
 import math
+import collections
 import seaborn as sns
 import bpy
 
@@ -44,67 +46,6 @@ def run_retarget(
     batch_size=1,
     visualize=False
 ) -> Dict[str, Tensor]:
-    
-    ##############################################################
-    ##                  Parameter setting                       ##
-    ##############################################################
-
-    assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
-    device = torch.device('cuda') if use_cuda else torch.device('cpu')
-
-    ''' 
-        Parameters weighting (g: gamma)
-        Energy term: gshape, gvol, gc
-        Contact term: gr, ga
-        Ground contact: grg, gag
-        Offset weight: epsilon
-    '''
-    gshape = gvol = gc = 1
-    gr = ga = 1
-    grg = gag = 0.1
-    eps = 0.3
-
-    # หมุนกระดูกไปทีละนิด แล้วเปรียบเทียบท่าทางว่าเหมือนกันไหม
-    # Convert any model to SMPL for compare right pose
-    # group part of body then check pose
-
-    ##############################################################
-    ##                   Mesh retargeting                       ##
-    ##############################################################
-    
-    # vsource = source_mesh['vertices']
-    # vsoutceStd = source_std_mesh['vertices']
-    # vtarget = target_mesh['vertices']
-    # fsource = source_mesh['faces']
-    # fsourceStd = source_std_mesh['faces']
-    # ftarget = target_mesh['faces']
-
-    # smpl_segm = getPartSegm(config)
-
-    # source_height = getHight(vsoutceStd)
-    # target_height = getHight(vtarget)
-    # vsource = setScale(vsource, target_height/source_height)
-
-    # nbSource = getNeighbors(vsource, fsource)
-    # nbTarget = getNeighbors(vtarget, ftarget)
-
-    # offsetTarget = getLaplacianOffset(vtarget, nbTarget)
-    # target_vol = getVolumes(vtarget, ftarget, smpl_segm)
-    
-    # for i in range(1):
-    #     offsetSource = getLaplacianOffset(vsource, nbSource)
-    #     shapeDirection = getShapeDirection(vsource, nbSource, offsetSource, offsetTarget)
-    #     EShape = getShapeEnergy(offsetSource, offsetTarget)
-
-    #    source_vol = getVolumes(vsource, fsource, smpl_segm)
-    #    volumeDirection = getVolumeDirection(source_vol, target_vol, offsetSource, smpl_segm)
-    #    EVol = getVolumeEnergy(source_vol, target_vol)
-        
-    #    vsource += eps*(shapeDirection)
-
-    # if visualize:
-    #     mesh = trimesh.Trimesh(vsource, fsource, process=False)
-    #     mesh.show()
 
     ##############################################################
     ##                  Read PKL for rotation                   ##
@@ -128,6 +69,12 @@ def run_retarget(
     'Spine2', 'LeftToeBase', 'RightToeBase', 'Neck', 'LeftShoulder', 'RightShoulder',
     'Head', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm',
     'LeftHand', 'RightHand']
+    
+    ERIC_JOINT_NAMES = ['root', 'upperleg_l', 'upperleg_r', 'spine_01', 
+    'lowerleg_l', 'lowerleg_r', 'spine_02', 'foot_l', 'foot_r',
+    'spine_03', 'ball_l', 'ball_r', 'neck', 'shoulder_l', 'shoulder_r',
+    'head', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r',
+    'hand_l', 'hand_r']
 
     with open(pkl, 'rb') as f:
         data = pickle.load(f, encoding='latin1')
@@ -153,10 +100,14 @@ def run_retarget(
     expression = np.array(data["expression"]).reshape(-1).tolist()
 
     ##############################################################
-    ##                  Skeleton retargeting                    ##
+    ##              Initial armature and pose                   ##
     ##############################################################
 
-    # Load FBX
+    '''
+        Load FBX file of source and dstination
+        Change name of armature
+        Keep only armature,then delete other objects (etc. light, camera)
+    '''
     bpy.ops.import_scene.fbx(filepath=src_path)
     bpy.ops.object.select_all(action='DESELECT')
     for ob in bpy.data.objects:
@@ -172,31 +123,57 @@ def run_retarget(
             bpy.data.objects[ob.name].select_set(True)
         elif ob.type == 'ARMATURE' and ob.name != 'SRC' and ob.name != 'DEST':
             bpy.data.objects[ob.name].name = 'DEST'
-    
     bpy.ops.object.delete()
+
+    '''
+        Initial source and destination pose by mapping body_pose
+    '''
 
     # Source armature
     src_joints = {}
-    for i, bone in enumerate(bpy.data.objects['SRC'].data.bones):
-        if bone.name in SMPLX_JOINT_NAMES:
-            src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].center) 
+    part_idx = 0
+    for bone in bpy.data.objects['SRC'].data.bones:
+        if bone.name in SMPLX_JOINT_NAMES and part_idx < NUM_SMPLX_BODYJOINTS:
+            if bone.name == 'pelvis': 
+                src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
+                continue
+            set_pose(bpy.data.objects['SRC'], SMPLX_JOINT_NAMES[part_idx+1], body_pose[part_idx])
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+            src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
+            part_idx = part_idx + 1
 
     # Destination armature
     dest_joints = {}
-    for i, bone in enumerate(bpy.data.objects['DEST'].data.bones):
-        if bone.name in AJ_JOINT_NAMES:
-            idx = AJ_JOINT_NAMES.index(bone.name)
+    part_idx = 0
+    for bone in bpy.data.objects['DEST'].data.bones:
+        if bone.name in ERIC_JOINT_NAMES and part_idx < NUM_SMPLX_BODYJOINTS:
+            # Rename joints to default name
+            idx = ERIC_JOINT_NAMES.index(bone.name)
             bpy.data.objects['DEST'].pose.bones[bone.name].name = SMPLX_JOINT_NAMES[idx]
-            dest_joints[bone.name] = np.array(bpy.data.objects['DEST'].pose.bones[bone.name].center)
+            if bpy.data.objects['DEST'].pose.bones[bone.name].name == 'pelvis': 
+                dest_joints[bone.name] = np.array(bpy.data.objects['DEST'].pose.bones[bone.name].head)
+                continue
+            # set_pose(bpy.data.objects['DEST'], bpy.data.objects['DEST'].pose.bones[bone.name].name, body_pose[idx-1])
+            # bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+            dest_joints[bone.name] = np.array(bpy.data.objects['DEST'].pose.bones[bone.name].head)
+            part_idx = part_idx + 1
 
-    # Create dataframe
+    ##############################################################
+    ##         Create dataframe for joint location              ##
+    ##############################################################
+
+    # Sort joints by key
+    src_joints = collections.OrderedDict(sorted(src_joints.items()))
+    dest_joints = collections.OrderedDict(sorted(dest_joints.items()))
+
+    # Reshape into (N, 3)
     src_coor = np.concatenate(list(src_joints.values()), axis=0).reshape((-1,3))
     dest_coor = np.concatenate(list(dest_joints.values()), axis=0).reshape((-1,3))
-    
+
     df = pd.DataFrame(src_joints.keys(), columns=['joint'])
-    df['src_x'] = src_coor[:,0]
-    df['src_y'] = src_coor[:,1]
-    df['src_z'] = src_coor[:,2]
+    df['src_x'] = src_coor[:,0] * 100 
+    df['src_y'] = src_coor[:,2] * 100 # y-coor at position index 2
+    df['src_z'] = src_coor[:,1] * -100 # z-coor at position index 1
     df['dest_x'] = dest_coor[:,0]
     df['dest_y'] = dest_coor[:,1]
     df['dest_z'] = dest_coor[:,2]
@@ -207,6 +184,7 @@ def run_retarget(
     RightArm = ['right_collar', 'right_shoulder', 'right_elbow', 'right_wrist']
     LeftLeg = ['left_hip', 'left_knee', 'left_ankle', 'left_foot']
     RightLeg = ['right_hip', 'right_knee', 'right_ankle', 'right_foot']
+    Root = ['pelvis', 'spine1', 'left_hip', 'right_hip']
 
     df.loc[df['joint'].isin(Spine), 'part'] = 'Spine'
     df.loc[df['joint'].isin(LeftArm), 'part'] = 'LeftArm'
@@ -214,48 +192,77 @@ def run_retarget(
     df.loc[df['joint'].isin(LeftLeg), 'part'] = 'LeftLeg'
     df.loc[df['joint'].isin(RightLeg), 'part'] = 'RightLeg'
 
-    # minmax scaling
-    print(df)
+    ##############################################################
+    ##                   Calculate error                        ##
+    ##############################################################
 
-    # Find Error
+    # Calculate source pose distance
     miss = {}
-    hip = df[df['joint'] == 'pelvis']
-    # lh = df[df['joint'] == 'LeftHand']
+    pelvis = df[df['joint'] == 'pelvis']
     for idx, part in df.iterrows():
-        if not (part['joint'] in Spine):
-            src_dist = np.array([math.sqrt((part['src_x'] - hip['src_x'].values)**2 + (part['src_y'] - hip['src_y'].values)**2), \
-                                math.sqrt((part['src_x'] - hip['src_x'].values)**2 + (part['src_z'] - hip['src_z'].values)**2), \
-                                math.sqrt((part['src_z'] - hip['src_z'].values)**2 + (part['src_y'] - hip['src_y'].values)**2)])
-            dest_dist = np.array([math.sqrt((part['dest_x'] - hip['dest_x'].values)**2 + (part['dest_y'] - hip['dest_y'].values)**2), \
-                                 math.sqrt((part['dest_x'] - hip['dest_x'].values)**2 + (part['dest_z'] - hip['dest_z'].values)**2), \
-                                 math.sqrt((part['dest_z'] - hip['dest_z'].values)**2 + (part['dest_y'] - hip['dest_y'].values)**2)])
-            miss[part['joint']] =  abs(dest_dist - src_dist)
+        src_dist = np.array([math.sqrt((part['src_x'] - pelvis['src_x'].values)**2 + (part['src_y'] - pelvis['src_y'].values)**2), \
+                            math.sqrt((part['src_x'] - pelvis['src_x'].values)**2 + (part['src_z'] - pelvis['src_z'].values)**2), \
+                            math.sqrt((part['src_z'] - pelvis['src_z'].values)**2 + (part['src_y'] - pelvis['src_y'].values)**2)]) 
 
-    fig, axes = plt.subplots(1,2)
-    sns.scatterplot(ax=axes[0], data=df, x='src_y', y='src_z', hue='part')
-    sns.scatterplot(ax=axes[1], data=df, x='dest_y', y='dest_z', hue='part')
+    # Try to adjust destination pose
+    poses = {}
+    for part in LeftArm:
+        lr = 0.05
+        min_loss = [1000,1000,1000]
+        state = 0
+        pose = [0,0,0]
+        if part in Root:
+            continue
+        print(part)
+        while True:
+            if state == 0:
+                pose[0] = pose[0] + lr
+            elif state == 1:
+                pose[1] = pose[1] + lr
+            elif state == 2:
+                pose[2] = pose[2] + lr
+            
+            set_pose(bpy.data.objects['DEST'], LeftArm[LeftArm.index(part)-1], pose)
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+
+            # Calculate distances of destination
+            for child in LeftArm:              
+                df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
+                    np.array(bpy.data.objects['DEST'].pose.bones[child].head)
+                part_df = df.loc[df['joint'] == part]
+                dest_dist = np.array([math.sqrt((part_df['dest_x'] - pelvis['dest_x'].values)**2 + (part_df['dest_y'] - pelvis['dest_y'].values)**2), \
+                                    math.sqrt((part_df['dest_x'] - pelvis['dest_x'].values)**2 + (part_df['dest_z'] - pelvis['dest_z'].values)**2), \
+                                    math.sqrt((part_df['dest_z'] - pelvis['dest_z'].values)**2 + (part_df['dest_y'] - pelvis['dest_y'].values)**2)])
+            
+            loss = abs(dest_dist - src_dist)
+            if loss[0] < min_loss[0] or loss[1] < min_loss[1] or loss[2] < min_loss[2]:
+                min_loss = loss
+                print(min_loss)
+            else :
+                state = state + 1     
+            
+            if state == 4: break
+        poses[part] = pose
+    
+    print(poses)
+
+    # Visualize
+    fig, axes = plt.subplots(2, 3)
+    sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
+    sns.scatterplot(ax=axes[0,1], data=df, x='src_z', y='src_y', hue='part')
+    sns.scatterplot(ax=axes[0,2], data=df, x='src_x', y='src_z', hue='part')
+    sns.scatterplot(ax=axes[1,0], data=df, x='dest_x', y='dest_y', hue='part')
+    sns.scatterplot(ax=axes[1,1], data=df, x='dest_z', y='dest_y', hue='part')
+    sns.scatterplot(ax=axes[1,2], data=df, x='dest_x', y='dest_z', hue='part')
     plt.show()
 
-    # bpy.ops.export_scene.fbx(filepath=out_path+'/retar.fbx', use_selection=False)
-
-def setScale(vsource, scale):
-    vsource *= scale
-    return vsource
-
-def getHight(vertices):
-    return max(vertices[:,1]) - min(vertices[:,1])
-
-def getShapeEnergy(offsetSource, offsetTarget):
-    EShape = np.zeros(3)
-    for i in range(len(offsetSource)):
-        EShape += (offsetSource[i] - offsetTarget[i])**2
-    return EShape
-
-def getVolumeEnergy(volumeSource, volumeTarget):
-    EVol = 0
-    for part in volumeSource:
-        EVol += (volumeSource[part] - volumeTarget[part])**2
-    return EVol
+    # Export pkl
+    # result = {}
+    # result["body_pose"] = body_pose
+    # print(out_path)
+    # output = open(out_path+'/retar.pkl', 'wb')
+    # pickle.dump(result, output)
+    # output.close()
 
 def set_pose(armature, bone_name, rodrigues, rodrigues_ref=None):
     rod = Vector((rodrigues[0], rodrigues[1], rodrigues[2]))
@@ -276,4 +283,3 @@ def set_pose(armature, bone_name, rodrigues, rodrigues_ref=None):
         axis_result = rod_result.normalized()
         quat_result = Quaternion(axis_result, angle_rad_result)
         armature.pose.bones[bone_name].rotation_quaternion = quat_result
-    return
