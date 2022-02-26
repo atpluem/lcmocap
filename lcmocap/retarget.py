@@ -1,15 +1,17 @@
 import enum
 import imp
+from os import stat
 import sys
 from tkinter.tix import Tree
 from traceback import print_tb
+from turtle import pos
 from unittest import result
 from matplotlib import markers, projections
 from matplotlib.pyplot import axis
 from mpl_toolkits.mplot3d import Axes3D
 from networkx.algorithms.cluster import triangles
 import numpy as np
-from pyrender import light
+from pyrender import Primitive, light
 import torch
 import torch.nn as nn
 import trimesh
@@ -129,34 +131,76 @@ def run_retarget(
         Initial source and destination pose by mapping body_pose
     '''
 
-    # Source armature
-    src_joints = {}
-    part_idx = 0
-    for bone in bpy.data.objects['SRC'].data.bones:
-        if bone.name in SMPLX_JOINT_NAMES and part_idx < NUM_SMPLX_BODYJOINTS:
-            if bone.name == 'pelvis': 
-                src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
-                continue
-            set_pose(bpy.data.objects['SRC'], SMPLX_JOINT_NAMES[part_idx+1], body_pose[part_idx])
-            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-            src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
-            part_idx = part_idx + 1
-
     # Destination armature
     dest_joints = {}
+    dest_orien = {}
     part_idx = 0
     for bone in bpy.data.objects['DEST'].data.bones:
         if bone.name in ERIC_JOINT_NAMES and part_idx < NUM_SMPLX_BODYJOINTS:
             # Rename joints to default name
             idx = ERIC_JOINT_NAMES.index(bone.name)
             bpy.data.objects['DEST'].pose.bones[bone.name].name = SMPLX_JOINT_NAMES[idx]
+            # Check bone orientation
+            orien = abs(np.array(bpy.data.objects['DEST'].pose.bones[bone.name].head - \
+                                 bpy.data.objects['DEST'].pose.bones[bone.name].tail))
+            if np.argmax(orien) == 2:
+                dest_orien[bone.name] = 'h' # horizontal joint
+            elif np.argmax(orien) == 1:
+                dest_orien[bone.name] = 'v' # virtical joint
+            # root joint condition
             if bpy.data.objects['DEST'].pose.bones[bone.name].name == 'pelvis': 
                 dest_joints[bone.name] = np.array(bpy.data.objects['DEST'].pose.bones[bone.name].head)
                 continue
-            # set_pose(bpy.data.objects['DEST'], bpy.data.objects['DEST'].pose.bones[bone.name].name, body_pose[idx-1])
-            # bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
             dest_joints[bone.name] = np.array(bpy.data.objects['DEST'].pose.bones[bone.name].head)
             part_idx = part_idx + 1
+
+    # Source armature
+    ''' SMPLX base '''
+    # src_joints = {}
+    # part_idx = 0
+    # for bone in bpy.data.objects['SRC'].data.bones:
+    #     if bone.name in SMPLX_JOINT_NAMES and part_idx < NUM_SMPLX_BODYJOINTS:
+    #         # root joint condition
+    #         if bone.name == 'pelvis':
+    #             src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
+    #             continue
+    #         set_pose(bpy.data.objects['SRC'], SMPLX_JOINT_NAMES[part_idx+1], body_pose[part_idx])
+    #         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    #         src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
+    #         part_idx = part_idx + 1
+
+    ''' AJ base '''
+    src_joints = {}
+    part_idx = 0
+    for bone in bpy.data.objects['SRC'].data.bones:
+        if bone.name in AJ_JOINT_NAMES and part_idx < NUM_SMPLX_BODYJOINTS:
+            idx = AJ_JOINT_NAMES.index(bone.name)
+            bpy.data.objects['SRC'].pose.bones[bone.name].name = SMPLX_JOINT_NAMES[idx]
+            # root joint condition
+            if bpy.data.objects['SRC'].pose.bones[bone.name].name == 'pelvis':
+                src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
+                continue
+            src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
+            part_idx = part_idx + 1
+
+    # Scale and initial pose of armatures
+    scale = dest_joints['head'][1] / src_joints['head'][1]
+    poses = {}
+    for idx, body_parts in enumerate(SMPLX_JOINT_NAMES):
+        bpy.data.objects['SRC'].pose.bones[body_parts].scale *= scale
+        if bpy.data.objects['SRC'].pose.bones[body_parts].name == 'pelvis':
+            src_joints[body_parts] = np.array(bpy.data.objects['SRC'].pose.bones[body_parts].head)
+            continue
+        # Set the pose according to pose parameter
+        set_pose(bpy.data.objects['SRC'], bpy.data.objects['SRC'].pose.bones[body_parts].name, body_pose[idx-1])
+        if dest_orien[body_parts] == 'v':
+            poses[body_parts] = [body_pose[idx-1,0],body_pose[idx-1,2],-body_pose[idx-1,1]]
+        elif dest_orien[body_parts] == 'h':
+            poses[body_parts] = body_pose[idx-1].tolist()
+        set_pose(bpy.data.objects['DEST'], bpy.data.objects['DEST'].pose.bones[body_parts].name, poses[body_parts])
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        src_joints[body_parts] = np.array(bpy.data.objects['SRC'].pose.bones[body_parts].head)
+        dest_joints[body_parts] = np.array(bpy.data.objects['DEST'].pose.bones[body_parts].head)
 
     ##############################################################
     ##         Create dataframe for joint location              ##
@@ -165,18 +209,23 @@ def run_retarget(
     # Sort joints by key
     src_joints = collections.OrderedDict(sorted(src_joints.items()))
     dest_joints = collections.OrderedDict(sorted(dest_joints.items()))
+    dest_orien = collections.OrderedDict(sorted(dest_orien.items()))
 
     # Reshape into (N, 3)
     src_coor = np.concatenate(list(src_joints.values()), axis=0).reshape((-1,3))
     dest_coor = np.concatenate(list(dest_joints.values()), axis=0).reshape((-1,3))
+    dest_orien = list(dest_orien.values())
 
     df = pd.DataFrame(src_joints.keys(), columns=['joint'])
-    df['src_x'] = src_coor[:,0] * 100 
-    df['src_y'] = src_coor[:,2] * 100 # y-coor at position index 2
-    df['src_z'] = src_coor[:,1] * -100 # z-coor at position index 1
+    df['src_x'] = src_coor[:,0]
+    df['src_y'] = src_coor[:,1]
+    df['src_z'] = src_coor[:,2]
+    # df['src_y'] = src_coor[:,2] * 100 # y-coor at position index 2
+    # df['src_z'] = src_coor[:,1] * -100 # z-coor at position index 1
     df['dest_x'] = dest_coor[:,0]
     df['dest_y'] = dest_coor[:,1]
     df['dest_z'] = dest_coor[:,2]
+    df['dest_orien'] = dest_orien
 
     # Define part of body
     Spine = ['pelvis', 'spine1', 'spine2', 'spine3', 'neck', 'head']
@@ -184,7 +233,6 @@ def run_retarget(
     RightArm = ['right_collar', 'right_shoulder', 'right_elbow', 'right_wrist']
     LeftLeg = ['left_hip', 'left_knee', 'left_ankle', 'left_foot']
     RightLeg = ['right_hip', 'right_knee', 'right_ankle', 'right_foot']
-    Root = ['pelvis', 'spine1', 'left_hip', 'right_hip']
 
     df.loc[df['joint'].isin(Spine), 'part'] = 'Spine'
     df.loc[df['joint'].isin(LeftArm), 'part'] = 'LeftArm'
@@ -196,56 +244,31 @@ def run_retarget(
     ##                   Calculate error                        ##
     ##############################################################
 
-    # Calculate source pose distance
-    miss = {}
-    pelvis = df[df['joint'] == 'pelvis']
+    # Calculate source distance between any part to "spine1"
+    ref_joint = df[df['joint'] == 'spine1']
     for idx, part in df.iterrows():
-        src_dist = np.array([math.sqrt((part['src_x'] - pelvis['src_x'].values)**2 + (part['src_y'] - pelvis['src_y'].values)**2), \
-                            math.sqrt((part['src_x'] - pelvis['src_x'].values)**2 + (part['src_z'] - pelvis['src_z'].values)**2), \
-                            math.sqrt((part['src_z'] - pelvis['src_z'].values)**2 + (part['src_y'] - pelvis['src_y'].values)**2)]) 
+        src_dist = np.array([math.sqrt((part['src_x'] - ref_joint['src_x'].values)**2 + (part['src_y'] - ref_joint['src_y'].values)**2), \
+                             math.sqrt((part['src_x'] - ref_joint['src_x'].values)**2 + (part['src_z'] - ref_joint['src_z'].values)**2), \
+                             math.sqrt((part['src_z'] - ref_joint['src_z'].values)**2 + (part['src_y'] - ref_joint['src_y'].values)**2)]) 
 
     # Try to adjust destination pose
-    poses = {}
-    for part in LeftArm:
-        lr = 0.05
-        min_loss = [1000,1000,1000]
-        state = 0
-        pose = [0,0,0]
-        if part in Root:
-            continue
-        print(part)
-        while True:
-            if state == 0:
-                pose[0] = pose[0] + lr
-            elif state == 1:
-                pose[1] = pose[1] + lr
-            elif state == 2:
-                pose[2] = pose[2] + lr
-            
-            set_pose(bpy.data.objects['DEST'], LeftArm[LeftArm.index(part)-1], pose)
-            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-
-            # Calculate distances of destination
-            for child in LeftArm:              
-                df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
-                    np.array(bpy.data.objects['DEST'].pose.bones[child].head)
-                part_df = df.loc[df['joint'] == part]
-                dest_dist = np.array([math.sqrt((part_df['dest_x'] - pelvis['dest_x'].values)**2 + (part_df['dest_y'] - pelvis['dest_y'].values)**2), \
-                                    math.sqrt((part_df['dest_x'] - pelvis['dest_x'].values)**2 + (part_df['dest_z'] - pelvis['dest_z'].values)**2), \
-                                    math.sqrt((part_df['dest_z'] - pelvis['dest_z'].values)**2 + (part_df['dest_y'] - pelvis['dest_y'].values)**2)])
-            
-            loss = abs(dest_dist - src_dist)
-            if loss[0] < min_loss[0] or loss[1] < min_loss[1] or loss[2] < min_loss[2]:
-                min_loss = loss
-                print(min_loss)
-            else :
-                state = state + 1     
-            
-            if state == 4: break
-        poses[part] = pose
+    update_spine = Spine + LeftArm + RightArm
+    # get_pose_params(Spine, update_spine, df, ref_joint, src_dist, poses)
+    # get_pose_params(LeftArm, LeftArm, df, ref_joint, src_dist, poses)
+    # get_pose_params(RightArm, RightArm, df, ref_joint, src_dist, poses)
+    # get_pose_params(LeftLeg, LeftLeg, df, ref_joint, src_dist, poses)
+    # get_pose_params(RightLeg, RightLeg, df, ref_joint, src_dist, poses)
     
+    # Print pose parameter
     print(poses)
-
+    out = []
+    for i in SMPLX_JOINT_NAMES[1:]:
+        if i in poses.keys():
+            out.append(poses[i])
+        else:
+            out.append([0,0,0])
+    print(out)
+    
     # Visualize
     fig, axes = plt.subplots(2, 3)
     sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
@@ -283,3 +306,106 @@ def set_pose(armature, bone_name, rodrigues, rodrigues_ref=None):
         axis_result = rod_result.normalized()
         quat_result = Quaternion(axis_result, angle_rad_result)
         armature.pose.bones[bone_name].rotation_quaternion = quat_result
+
+def get_pose_params(body_parts, update_parts, df, ref_joint, src_dist, poses):
+    Root = ['pelvis', 'spine1', 'left_hip', 'right_hip']
+
+    for part in body_parts:
+        lr = 0.5
+        min_loss = [1000,1000,1000]
+        state = 0
+        pose = [0,0,0]
+        if part in Root:
+            continue
+        
+        print(part)
+        while True:
+            # set the pose according to pose parameter
+            set_pose(bpy.data.objects['DEST'], body_parts[body_parts.index(part)-1], pose)
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+            
+            # Get position of each part of body part
+            for child in update_parts:              
+                df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
+                    np.array(bpy.data.objects['DEST'].pose.bones[child].head)
+            part_df = df.loc[df['joint'] == part]
+            parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
+
+            dest_dist = np.array([math.sqrt((part_df['dest_x'] - ref_joint['dest_x'].values)**2 + (part_df['dest_y'] - ref_joint['dest_y'].values)**2), \
+                                  math.sqrt((part_df['dest_x'] - ref_joint['dest_x'].values)**2 + (part_df['dest_z'] - ref_joint['dest_z'].values)**2), \
+                                  math.sqrt((part_df['dest_z'] - ref_joint['dest_z'].values)**2 + (part_df['dest_y'] - ref_joint['dest_y'].values)**2)])
+            loss = abs(dest_dist - src_dist)
+
+            if state == 0: # rotate x-axis
+                if  ((((part_df['dest_z'].values >= ref_joint['dest_z'].values) and (part_df['src_z'].values >= ref_joint['src_z'].values)) or \
+                    ((part_df['dest_z'].values < ref_joint['dest_z'].values) and (part_df['src_z'].values < ref_joint['src_z'].values))) and \
+                    (((part_df['dest_y'].values >= ref_joint['dest_y'].values) and (part_df['src_y'].values >= ref_joint['src_y'].values)) or \
+                    ((part_df['dest_y'].values < ref_joint['dest_y'].values) and (part_df['src_y'].values < ref_joint['src_y'].values)))) and \
+                    ((((part_df['dest_z'].values >= parent_df['dest_z'].values) and (part_df['src_z'].values >= parent_df['src_z'].values)) or \
+                    ((part_df['dest_z'].values < parent_df['dest_z'].values) and (part_df['src_z'].values < parent_df['src_z'].values))) and \
+                    (((part_df['dest_y'].values >= parent_df['dest_y'].values) and (part_df['src_y'].values >= parent_df['src_y'].values)) or \
+                    ((part_df['dest_y'].values < parent_df['dest_y'].values) and (part_df['src_y'].values < parent_df['src_y'].values)))):
+                    if loss[2] < min_loss[2] and (min_loss[2] - loss[2]) >= 1:
+                        print(state, loss)
+                        min_loss[2] = loss[2]
+                    else:
+                        state = state + 1
+                pose[0] = pose[0] + lr
+                if pose[0] > 20:
+                    # pose[0] = 0
+                    state = state + 1
+
+            elif state == 1: # rotate y-axis
+                if  ((((part_df['dest_x'].values >= ref_joint['dest_x'].values) and (part_df['src_x'].values >= ref_joint['src_x'].values)) or \
+                    ((part_df['dest_x'].values < ref_joint['dest_x'].values) and (part_df['src_x'].values < ref_joint['src_x'].values))) and \
+                    (((part_df['dest_z'].values >= ref_joint['dest_z'].values) and (part_df['src_z'].values >= ref_joint['src_z'].values)) or \
+                    ((part_df['dest_z'].values < ref_joint['dest_z'].values) and (part_df['src_z'].values < ref_joint['src_z'].values)))) and \
+                    ((((part_df['dest_x'].values >= parent_df['dest_x'].values) and (part_df['src_x'].values >= parent_df['src_x'].values)) or \
+                    ((part_df['dest_x'].values < parent_df['dest_x'].values) and (part_df['src_x'].values < parent_df['src_x'].values))) and \
+                    (((part_df['dest_z'].values >= parent_df['dest_z'].values) and (part_df['src_z'].values >= parent_df['src_z'].values)) or \
+                    ((part_df['dest_z'].values < parent_df['dest_z'].values) and (part_df['src_z'].values < parent_df['src_z'].values)))):
+                    if loss[1] < min_loss[1] and (min_loss[1] - loss[1]) >= 1:
+                        print(state, loss)
+                        min_loss[1] = loss[1]
+                    else:
+                        state = state + 1
+                if part_df['dest_orien'].values == 'h':
+                    pose[1] = pose[1] + lr
+                    if pose[1] > 20:
+                        # pose[1] = 0
+                        state = state + 1
+                elif part_df['dest_orien'].values == 'v':
+                    pose[2] = pose[2] + lr
+                    if pose[2] > 20:
+                        # pose[2] = 0
+                        state = state + 1
+            
+            elif state == 2: # rotate z-axis
+                if  ((((part_df['dest_x'].values >= ref_joint['dest_x'].values) and (part_df['src_x'].values >= ref_joint['src_x'].values)) or \
+                    ((part_df['dest_x'].values < ref_joint['dest_x'].values) and (part_df['src_x'].values < ref_joint['src_x'].values))) and \
+                    (((part_df['dest_y'].values >= ref_joint['dest_y'].values) and (part_df['src_y'].values >= ref_joint['src_y'].values)) or \
+                    ((part_df['dest_y'].values < ref_joint['dest_y'].values) and (part_df['src_y'].values < ref_joint['src_y'].values)))) and \
+                    ((((part_df['dest_x'].values >= parent_df['dest_x'].values) and (part_df['src_x'].values >= parent_df['src_x'].values)) or \
+                    ((part_df['dest_x'].values < parent_df['dest_x'].values) and (part_df['src_x'].values < parent_df['src_x'].values))) and \
+                    (((part_df['dest_y'].values >= parent_df['dest_y'].values) and (part_df['src_y'].values >= parent_df['src_y'].values)) or \
+                    ((part_df['dest_y'].values < parent_df['dest_y'].values) and (part_df['src_y'].values < parent_df['src_y'].values)))):
+                    if loss[0] < min_loss[0] and (min_loss[0] - loss[0]) >= 1:
+                        print(state, loss)
+                        min_loss[0] = loss[0]
+                    else:
+                        state = state + 1
+                if part_df['dest_orien'].values == 'h':
+                    pose[2] = pose[2] + lr
+                    if pose[2] > 20:
+                        # pose[2] = 0
+                        state = state + 1
+                elif part_df['dest_orien'].values == 'v':
+                    pose[1] = pose[1] + lr
+                    if pose[1] > 20:
+                        # pose[1] = 0
+                        state = state + 1
+
+            if state == 3:
+                break
+
+        poses[body_parts[body_parts.index(part)-1]] = pose
