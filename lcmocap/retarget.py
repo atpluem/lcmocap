@@ -34,9 +34,7 @@ from human_body_prior.tools.model_loader import load_vposer
 from shape import *
 from volume import *
 from mathutils import Vector, Quaternion, Matrix
-from sklearn.decomposition import PCA
-from matplotlib.colors import ListedColormap
-
+from utils.utilfuncs import *
 
 def run_retarget(
     config,
@@ -251,45 +249,27 @@ def run_retarget(
 
     # Try to adjust destination pose
     update_spine = Spine + LeftArm + RightArm
-    get_pose_params(Spine, update_spine, df, poses)
-    get_pose_params(LeftArm, LeftArm, df, poses)
-    get_pose_params(RightArm, RightArm, df, poses)
-    get_pose_params(LeftLeg, LeftLeg, df, poses)
-    get_pose_params(RightLeg, RightLeg, df, poses)
+    # get_pose_params(Spine, update_spine, df, poses)
+    # get_pose_params(LeftArm, LeftArm, df, poses)
+    # get_pose_params(RightArm, RightArm, df, poses)
+    # get_pose_params(LeftLeg, LeftLeg, df, poses)
+    # get_pose_params(RightLeg, RightLeg, df, poses)
+
+    # Try to adjust destination pose
+    # get_pose_quaternion(Spine, update_spine, df, poses)
+    # get_pose_quaternion(LeftArm, LeftArm, df, poses)
+    # get_pose_quaternion(RightArm, RightArm, df, poses)
+    # get_pose_quaternion(LeftLeg, LeftLeg, df, poses)
+    # get_pose_quaternion(RightLeg, RightLeg, df, poses)
+
+    # Try to adjust destination pose
+    get_pose(Spine, update_spine, df, poses)
     
     # Print pose parameter
-    # out = []
-    # for i in SMPLX_JOINT_NAMES[1:]:
-    #     if i in poses.keys():
-    #         out.append(poses[i])
-    #     else:
-    #         out.append([0,0,0])
-    
-    # print('[')
-    # for i in out:
-    #     print(i,',')
-    # print(']')
+    # print_pose_params(poses, SMPLX_JOINT_NAMES)
 
     # Print pose quaternion
-    axi = []
-    ang = []
-    for i in SMPLX_JOINT_NAMES[1:]:
-        if i in poses.keys():
-            a, n = poses[i].to_axis_angle()
-            axi.append(a[:])
-            ang.append(n)
-        else:
-            axi.append((0,0,0))
-            ang.append(0)
-
-    print('[')
-    for i in axi:
-        print(i,',')
-    print(']')
-    print('[')
-    for i in ang:
-        print(i,',')
-    print(']')
+    # print_pose_quat(poses, SMPLX_JOINT_NAMES)
 
     # Visualize
     fig, axes = plt.subplots(2, 3)
@@ -334,15 +314,14 @@ def set_pose(armature, bone_name, rodrigues, rodrigues_ref=None):
         armature.pose.bones[bone_name].rotation_quaternion = quat_result
 
 def get_pose_params(body_parts, update_parts, df, poses):
+    ''' Retarget using adjusting pose parameter '''
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
 
     for part in body_parts:
         lr = 0.01
         min_loss = [1000,1000,1000]
-        min_loss3D = 0
         state = 0
         direct = 1
-        flag = 0
         pose = [0,0,0]
         axis = [0,0,0] # [xy-pose-idx, xz-pose-idx, zy-pose-idx]
         if part in Root:
@@ -355,13 +334,82 @@ def get_pose_params(body_parts, update_parts, df, poses):
         elif parent_df['dest_orien'].values == 'v':
             axis = [2,1,0]
 
-        print(part)
+        print(body_parts[body_parts.index(part)-1])
+        while True:    
+            # Get position of each part of body part
+            for child in update_parts:              
+                df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
+                    np.array(bpy.data.objects['DEST'].pose.bones[child].head)
+            part_df = df.loc[df['joint'] == part]
+            parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
 
-        ''' Retarget using rotate rigging by world coordinate '''
+            src_angle = get_2D_angle(part_df, parent_df, 'src')
+            dest_angle = get_2D_angle(part_df, parent_df, 'dest')
+            loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]
 
+            # if part == 'neck':
+            #     print('direct: ',direct, 'axis: ', axis, 'pose: ', pose)
+            #     print(state, 'angle', src_angle, dest_angle, loss, min_loss)
 
+            if state == 0: # rotate x-axis
+                if loss[2] < min_loss[2]:
+                    min_loss = loss
+                    pose[axis[2]] = pose[axis[2]] + direct*lr
+                elif min_loss[2] > 0.05:
+                    direct = -1
+                    pose[axis[2]] = pose[axis[2]] - 2*lr
+                else:
+                    direct = 1
+                    state = state + 1
 
-        ''' Retarget by "axis and angle" between source and target vector '''
+            elif state == 1: # rotate y-axis
+                if loss[1] < min_loss[1]:
+                    min_loss = loss
+                    pose[axis[1]] = pose[axis[1]] + direct*lr
+                elif min_loss[1] > 0.05:
+                    direct = -1
+                    pose[axis[1]] = pose[axis[1]] - 2*lr
+                else:
+                    direct = 1
+                    state = state + 1
+
+            elif state == 2: # rotate z-axis
+                if loss[0] < min_loss[0]:
+                    min_loss = loss
+                    pose[axis[0]] = pose[axis[0]] + direct*lr
+                elif min_loss[0] > 0.05:
+                    direct = -1
+                    pose[axis[0]] = pose[axis[0]] - 2*lr
+                else:
+                    direct = 1
+                    state = state + 1
+
+            if state == 3:
+                src_angle = get_3D_angle(part_df, parent_df, 'src')
+                dest_angle = get_3D_angle(part_df, parent_df, 'dest')
+                loss3D = abs(src_angle - dest_angle)
+                print('loss3D', src_angle, dest_angle, loss3D)
+                break
+
+            # set the pose according to pose parameter
+            set_pose(bpy.data.objects['DEST'], body_parts[body_parts.index(part)-1], pose)
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+                    
+        poses[body_parts[body_parts.index(part)-1]] = pose
+
+def get_pose_quaternion(body_parts, update_parts, df, poses):
+    ''' Retarget by "axis and angle" between source and target vector '''
+    Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
+
+    for part in body_parts:
+        min_loss3D = 0
+        flag = 0
+        if part in Root:
+            continue
+
+        part_df = df.loc[df['joint'] == part]
+        parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]] 
+        print(body_parts[body_parts.index(part)-1])
         diff_axis, diff_angle = get_3D_angle_axis(part_df, parent_df)
         while True:
             q = Quaternion(-diff_axis, diff_angle)
@@ -385,7 +433,7 @@ def get_pose_params(body_parts, update_parts, df, poses):
             dest_angle = get_3D_angle(part_df, parent_df, 'dest')
             loss3D = abs(src_angle - dest_angle)
 
-            print(loss,min_loss3D)
+            print(loss, src_angle, dest_angle, loss3D)
             if loss3D < min_loss3D:
                 min_loss3D = loss3D
                 diff_angle = diff_angle + 0.01
@@ -396,70 +444,48 @@ def get_pose_params(body_parts, update_parts, df, poses):
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
 
+def get_pose(body_parts, update_parts, df, poses):
+    Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
 
-        ''' Retarget using adjusting pose parameter '''
-        # while True:
-            
-        #     # Get position of each part of body part
-        #     for child in update_parts:              
-        #         df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
-        #             np.array(bpy.data.objects['DEST'].pose.bones[child].head)
-        #     part_df = df.loc[df['joint'] == part]
-        #     parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
+    for part in body_parts:
+        if part in Root:
+            continue
 
-        #     src_angle = get_2D_angle(part_df, parent_df, 'src')
-        #     dest_angle = get_2D_angle(part_df, parent_df, 'dest')
-        #     loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]
+        
 
-        #     # if part == 'neck':
-        #     #     print('direct: ',direct, 'axis: ', axis, 'pose: ', pose)
-        #     #     print(state, 'angle', src_angle, dest_angle, loss, min_loss)
+        while False:
+            q = Quaternion(-diff_axis, diff_angle)
 
-        #     if state == 0: # rotate x-axis
-        #         if loss[2] < min_loss[2]:
-        #             min_loss = loss
-        #             pose[axis[2]] = pose[axis[2]] + direct*lr
-        #         elif min_loss[2] > 0.05:
-        #             direct = -1
-        #             pose[axis[2]] = pose[axis[2]] - 2*lr
-        #         else:
-        #             direct = 1
-        #             state = state + 1
+            bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion = q
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        
+            for child in update_parts:
+                df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
+                    np.array(bpy.data.objects['DEST'].pose.bones[child].head)
+            part_df = df.loc[df['joint'] == part]
+            parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
 
-        #     elif state == 1: # rotate y-axis
-        #         if loss[1] < min_loss[1]:
-        #             min_loss = loss
-        #             pose[axis[1]] = pose[axis[1]] + direct*lr
-        #         elif min_loss[1] > 0.05:
-        #             direct = -1
-        #             pose[axis[1]] = pose[axis[1]] - 2*lr
-        #         else:
-        #             direct = 1
-        #             state = state + 1
+            if flag: break
 
-        #     elif state == 2: # rotate z-axis
-        #         if loss[0] < min_loss[0]:
-        #             min_loss = loss
-        #             pose[axis[0]] = pose[axis[0]] + direct*lr
-        #         elif min_loss[0] > 0.05:
-        #             direct = -1
-        #             pose[axis[0]] = pose[axis[0]] - 2*lr
-        #         else:
-        #             direct = 1
-        #             state = state + 1
+            src_angle = get_2D_angle(part_df, parent_df, 'src')
+            dest_angle = get_2D_angle(part_df, parent_df, 'dest')
+            loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]
 
-        #     if state == 3:
-        #         src_angle = get_3D_angle(part_df, parent_df, 'src')
-        #         dest_angle = get_3D_angle(part_df, parent_df, 'dest')
-        #         loss3D = abs(src_angle - dest_angle)
-        #         print('loss3D', src_angle, dest_angle, loss3D)
-        #         break
+            src_angle = get_3D_angle(part_df, parent_df, 'src')
+            dest_angle = get_3D_angle(part_df, parent_df, 'dest')
+            loss3D = abs(src_angle - dest_angle)
 
-        #     # set the pose according to pose parameter
-        #     set_pose(bpy.data.objects['DEST'], body_parts[body_parts.index(part)-1], pose)
-        #     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-                    
-        # poses[body_parts[body_parts.index(part)-1]] = pose
+            print(loss, src_angle, dest_angle, loss3D)
+            if loss3D < min_loss3D:
+                min_loss3D = loss3D
+                diff_angle = diff_angle + 0.01
+            else:
+                # print(loss, min_loss3D)
+                diff_angle = diff_angle - 0.01
+                flag = 1
+        poses[body_parts[body_parts.index(part)-1]] = \
+            bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
+
 
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
@@ -511,3 +537,37 @@ def mat_offset(pose_bone):
     if pose_bone.parent:
         mat.translation.y += bone.parent.length
     return mat
+
+def print_pose_quat(poses, joints):
+    axi = []
+    ang = []
+    for i in joints[1:]:
+        if i in poses.keys():
+            a, n = poses[i].to_axis_angle()
+            axi.append(a[:])
+            ang.append(n)
+        else:
+            axi.append((0,0,0))
+            ang.append(0)
+
+    print('[')
+    for i in axi:
+        print(i,',')
+    print(']')
+    print('[')
+    for i in ang:
+        print(i,',')
+    print(']')
+
+def print_pose_params(poses, joints):
+    out = []
+    for i in joints[1:]:
+        if i in poses.keys():
+            out.append(poses[i])
+        else:
+            out.append([0,0,0])
+    
+    print('[')
+    for i in out:
+        print(i,',')
+    print(']')
