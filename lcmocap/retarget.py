@@ -240,13 +240,6 @@ def run_retarget(
     ##                   Calculate error                        ##
     ##############################################################
 
-    # Calculate source distance between any part to "spine1"
-    # ref_joint = df[df['joint'] == 'spine1']
-    # for idx, part in df.iterrows():
-        # src_dist = np.array([math.sqrt((part['src_x'] - ref_joint['src_x'].values)**2 + (part['src_y'] - ref_joint['src_y'].values)**2), \
-        #                      math.sqrt((part['src_x'] - ref_joint['src_x'].values)**2 + (part['src_z'] - ref_joint['src_z'].values)**2), \
-        #                      math.sqrt((part['src_z'] - ref_joint['src_z'].values)**2 + (part['src_y'] - ref_joint['src_y'].values)**2)]) 
-
     # Try to adjust destination pose
     update_spine = Spine + LeftArm + RightArm
     # get_pose_params(Spine, update_spine, df, poses)
@@ -297,11 +290,11 @@ def run_retarget(
     # bpy.ops.export_scene.fbx(filepath=out_path+'retar.fbx', use_selection=False)
 
 def set_pose_euler(armature, bone_name, angle):
-    if armature.pose.bones[bone_name].rotation_mode != 'XYZ':
-        armature.pose.bones[bone_name].rotation_mode = 'XYZ'
+    if armature.pose.bones[bone_name].rotation_mode != 'YZX':
+        armature.pose.bones[bone_name].rotation_mode = 'YZX'
 
     armature.pose.bones[bone_name].rotation_euler = angle
-    armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
+    # armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
     
 
 def set_pose(armature, bone_name, rodrigues, rodrigues_ref=None):
@@ -475,11 +468,11 @@ def get_pose_euler(body_parts, update_parts, df, poses):
 
             src_angle = get_2D_angle(part_df, parent_df, 'src')
             dest_angle = get_2D_angle(part_df, parent_df, 'dest')
-            loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]
-            
-            # if part == 'right_shoulder':
-            # print('state:', state, pose)
-            # print(src_angle, dest_angle, loss, min_loss)         
+            loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]     
+
+            # if body_parts[body_parts.index(part)-1] == 'right_collar':
+            #     print('state: ', state, pose)
+            #     print('loss', src_angle, dest_angle, loss)
 
             if state == 0: # rotate x-axis
                 dloss = abs(loss[2] - min_loss[2])
@@ -521,7 +514,22 @@ def get_pose_euler(body_parts, update_parts, df, poses):
                     state = state + 1
 
             if state == 3:
-                break
+                if parent_df['joint'].values == 'spine3':
+                    if df.loc[df['joint'] == 'left_collar']['dest_x'].values < \
+                       df.loc[df['joint'] == 'right_collar']['dest_x'].values:
+                       pose[0] = -1 * pose[0]
+                       state = 0
+                       min_loss = [10,10,10]
+                    else:
+                        print('loss: ',min_loss)
+                        break
+                elif (loss[0] > 0.35) or (loss[1] > 0.35) or (loss[2] > 0.35):
+                    print('try')
+                    state = 0
+                    min_loss = [10,10,10]
+                else:
+                    print('loss: ',min_loss)
+                    break
 
             set_pose_euler(bpy.data.objects['DEST'], body_parts[body_parts.index(part)-1], 
                             (pose[0], pose[1], pose[2])) # [xz, xy, zy]
@@ -532,8 +540,10 @@ def get_pose_euler(body_parts, update_parts, df, poses):
                 df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
                     np.array(bpy.data.objects['DEST'].pose.bones[child].head)
             
+        # poses[body_parts[body_parts.index(part)-1]] = \
+        #     bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
         poses[body_parts[body_parts.index(part)-1]] = \
-            bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
+            bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_euler.to_quaternion()
 
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
