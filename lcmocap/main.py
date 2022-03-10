@@ -29,6 +29,7 @@ def main() -> None:
 
     # Read YAML config 
     config = parse_args()
+    print(config)
 
     # Initialize tqdm
     logger.remove()
@@ -56,10 +57,11 @@ def main() -> None:
     ''' Load FBX '''
     src_fbx_path = data_obj_dict['src_fbx_path']
     dest_fbx_path = data_obj_dict['dest_fbx_path']
+    pose_params_path = data_obj_dict['pose_params_path']
 
     # Fitting Retarget
     run_retarget(config=config,
-                pkl='input/source_model/000.pkl',
+                pose_params_path=pose_params_path['pkl_path'],
                 src_path=src_fbx_path['fbx_path'],
                 dest_path=dest_fbx_path['fbx_path'],
                 out_path=output_folder,

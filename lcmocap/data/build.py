@@ -10,6 +10,7 @@ from torch.utils.data import dataset
 from .mesh import MeshFolder
 from .bvh import BVHFolder
 from .fbx import FBXFolder
+from .pose_pkl import PKLFolder
 
 def build_dataloader(config):
     dset_name = config.datasets.name
@@ -32,10 +33,12 @@ def build_dataloader(config):
         # logger.info(target_folder.pretty())
         # source_bvh = BVHFolder(**source_folder)
         ''' Load FBX '''
-        source_folder = config.datasets.src_fbx_dir
-        target_folder = config.datasets.dest_fbx_dir
-        source_fbx = FBXFolder(**source_folder)
-        target_fbx = FBXFolder(**target_folder)
+        source_folder = config.datasets.src_dir
+        target_folder = config.datasets.dest_dir
+        pose_folder = config.datasets.pose_params_dir
+        source_fbx = FBXFolder(source_folder)
+        target_fbx = FBXFolder(target_folder)
+        pose_pkl = PKLFolder(pose_folder)
 
     else:
         raise ValueError(f'Unknown dataset: {dset_name}')
@@ -53,6 +56,7 @@ def build_dataloader(config):
     # return {'sourceloader': sourceloader, 'source_data': source_data,
     #         'targetloader': targetloader, 'target_data': target_data}
 
-    return {'src_fbx_path': source_fbx[0], 'dest_fbx_path': target_fbx[0]}
+    return {'src_fbx_path': source_fbx[0], 'dest_fbx_path': target_fbx[0],
+            'pose_params_path': pose_pkl[0]}
 
     

@@ -7,32 +7,18 @@ from .body_model_defaults import conf as body_model_cfg,  BodyModelConfig
 from .optim_defaults import conf as optim_cfg, OptimConfig
 
 @dataclass
-class MeshFolder:
-    mesh_folder: str = ''
-
-@dataclass
-class BVHFolder:
-    bvh_folder: str = ''
-
-@dataclass
-class FBXFolder:
-    fbx_folder: str = ''
+class Folder:
+    folder: str = ''
 
 @dataclass
 class DatasetConfig:
     num_workers: int = 0
     name: str = 'data-folder'
-    # mesh directory
-    src_mesh_dir: MeshFolder = MeshFolder()
-    src_std_mesh_dir: MeshFolder = MeshFolder()
-    dest_mesh_dir: MeshFolder = MeshFolder()
-    # bvh directory
-    src_bvh_dir: BVHFolder = BVHFolder()
-    dest_bvh_dir: BVHFolder = BVHFolder()
-    # fbx folder
-    src_fbx_dir: FBXFolder = FBXFolder()
-    dest_fbx_dir: FBXFolder = FBXFolder()
-
+    src_dir: str = 'input/source'
+    src_std_dir: str = 'input/source_std'
+    dest_dir: str =  'input/destination'
+    pose_params_dir: str = 'input/source'
+    
 @dataclass
 class BodyPartSegm:
     name: str = 'body-part segmentation path'
