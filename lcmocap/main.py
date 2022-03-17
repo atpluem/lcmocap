@@ -11,6 +11,7 @@ from loguru import logger
 # from smplx import build_layer
 from config import parse_args
 from data import build_dataloader
+from retarget_mesh import run_retarget_mesh
 from retarget import run_retarget
 
 def main() -> None:
@@ -29,7 +30,6 @@ def main() -> None:
 
     # Read YAML config 
     config = parse_args()
-    print(config)
 
     # Initialize tqdm
     logger.remove()
@@ -49,15 +49,23 @@ def main() -> None:
     # Dataloader
     data_obj_dict = build_dataloader(config)
     ''' Load Meshs '''
-    # source_mesh = data_obj_dict['source_pose']
-    # source_std_mesh = data_obj_dict['source_std_pose']
-    # target_mesh = data_obj_dict['target_pose']
+    src_mesh = data_obj_dict['src_mesh']
+    src_std_mesh = data_obj_dict['src_mesh_std']
+    dest_mesh = data_obj_dict['dest_mesh']
     ''' Load BVH '''
     # source_bvh = data_obj_dict['']
     ''' Load FBX '''
     src_fbx_path = data_obj_dict['src_fbx_path']
     dest_fbx_path = data_obj_dict['dest_fbx_path']
     pose_params_path = data_obj_dict['pose_params_path']
+
+    # Fitting Retarget MESH
+    # run_retarget_mesh(config=config,
+    #                   src_mesh=src_mesh,
+    #                   src_std_mesh=src_std_mesh,
+    #                   dest_mesh=dest_mesh,
+    #                   out_path=output_folder,
+    #                   visualize=False)
 
     # Fitting Retarget
     run_retarget(config=config,

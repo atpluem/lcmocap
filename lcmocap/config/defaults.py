@@ -1,7 +1,7 @@
 from os import name
 from omegaconf import OmegaConf
-from dataclasses import dataclass
-from typing import Tuple, Optional
+from dataclasses import dataclass, field
+from typing import Tuple, Optional, List
 
 from .body_model_defaults import conf as body_model_cfg,  BodyModelConfig
 from .optim_defaults import conf as optim_cfg, OptimConfig
@@ -18,6 +18,7 @@ class DatasetConfig:
     src_std_dir: str = 'input/source_std'
     dest_dir: str =  'input/destination'
     pose_params_dir: str = 'input/source'
+    joints: List = field(default_factory=lambda: [''])
     
 @dataclass
 class BodyPartSegm:

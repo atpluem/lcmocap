@@ -1,40 +1,16 @@
-import enum
-import imp
-from os import stat
-import sys
-from tkinter.tix import Tree
-from traceback import print_tb
-from turtle import pos
-from unittest import result
-from matplotlib import markers, projections
-from matplotlib.pyplot import axis
-from mpl_toolkits.mplot3d import Axes3D
-from networkx.algorithms.cluster import triangles
 import numpy as np
-from pyrender import Primitive, light
-import torch
-import torch.nn as nn
-import trimesh
-import networkx as nx
 import pickle
 import matplotlib.pyplot as plt
 import pandas as pd
-import math
 import collections
 import seaborn as sns
 import bpy
 
-from tkinter import *
-from tqdm import tqdm
-from loguru import logger
 from typing import Optional, Dict, Callable, Union
-from data import mesh
 from utils import (Tensor)
-from human_body_prior.tools.model_loader import load_vposer
-from shape import *
-from volume import *
 from mathutils import Vector, Quaternion, Matrix
 from utils.utilfuncs import *
+from numpy.random import randint, rand
 
 def run_retarget(
     config,
@@ -75,6 +51,8 @@ def run_retarget(
     'spine_03', 'ball_l', 'ball_r', 'neck', 'shoulder_l', 'shoulder_r',
     'head', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r',
     'hand_l', 'hand_r']
+
+    JOINTS = config.datasets.joints
 
     print(pose_params_path)
     with open(pose_params_path, 'rb') as f:
@@ -135,9 +113,9 @@ def run_retarget(
     dest_orien = {}
     part_idx = 0
     for bone in bpy.data.objects['DEST'].data.bones:
-        if bone.name in ERIC_JOINT_NAMES and part_idx < NUM_SMPLX_BODYJOINTS:
+        if bone.name in JOINTS and part_idx < NUM_SMPLX_BODYJOINTS:
             # Rename joints to default name
-            idx = ERIC_JOINT_NAMES.index(bone.name)
+            idx = JOINTS.index(bone.name)
             bpy.data.objects['DEST'].pose.bones[bone.name].name = SMPLX_JOINT_NAMES[idx]
             # Check bone orientation
             orien = abs(np.array(bpy.data.objects['DEST'].pose.bones[bone.name].head - \
@@ -256,27 +234,54 @@ def run_retarget(
     # get_pose_quaternion(LeftLeg, LeftLeg, df, poses)
     # get_pose_quaternion(RightLeg, RightLeg, df, poses)
 
-    # Try to adjust destination pose
-    get_pose_euler(Spine, update_spine, df, poses)
-    get_pose_euler(LeftArm, LeftArm, df, poses)
-    get_pose_euler(RightArm, RightArm, df, poses)
-    get_pose_euler(LeftLeg, LeftLeg, df, poses)
-    get_pose_euler(RightLeg, RightLeg, df, poses)
+    # Try to adjust destination pose PASS!!!
+    # get_pose_euler(Spine, update_spine, df, poses)
+    # get_pose_euler(LeftArm, LeftArm, df, poses)
+    # get_pose_euler(RightArm, RightArm, df, poses)
+    # get_pose_euler(LeftLeg, LeftLeg, df, poses)
+    # get_pose_euler(RightLeg, RightLeg, df, poses)
+
+    # Try to adjust destination pose GA
+    get_pose_genetic(Spine, update_spine, df)
+    get_pose_genetic(LeftArm, LeftArm, df)
+    # get_pose_genetic(RightArm, RightArm, df)
+    # get_pose_genetic(LeftLeg, LeftLeg, df)
+    # get_pose_genetic(RightLeg, RightLeg, df)
     
+    # lp = np.array(loss_plt['spine2'])
+    # print(lp)
+    # plt.title('Loss of Spine2 each iterator')
+    # plt.plot(lp[:-1,0], label='xy-plane')
+    # plt.plot(lp[:-1,1], label='xz-plane')
+    # plt.plot(lp[:-1,2], label='zy-plane')
+    # plt.xlabel('number of iteration')
+    # plt.ylabel('loss (radian)')
+    # plt.legend()
+    # plt.show()
+
     # Print pose parameter
     # print_pose_params(poses, SMPLX_JOINT_NAMES)
 
     # Print pose quaternion
-    print_pose_quat(poses, SMPLX_JOINT_NAMES)
+    # print_pose_quat(poses, SMPLX_JOINT_NAMES)
 
     # Visualize
-    fig, axes = plt.subplots(2, 3)
+    # fig, axes = plt.subplots(2, 3)
+    # sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
+    # sns.scatterplot(ax=axes[0,1], data=df, x='src_z', y='src_y', hue='part')
+    # sns.scatterplot(ax=axes[0,2], data=df, x='src_x', y='src_z', hue='part')
+    # sns.scatterplot(ax=axes[1,0], data=df, x='dest_x', y='dest_y', hue='part')
+    # sns.scatterplot(ax=axes[1,1], data=df, x='dest_z', y='dest_y', hue='part')
+    # sns.scatterplot(ax=axes[1,2], data=df, x='dest_x', y='dest_z', hue='part')
+    # plt.show()
+
+    fig, axes = plt.subplots(3, 2)
     sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
-    sns.scatterplot(ax=axes[0,1], data=df, x='src_z', y='src_y', hue='part')
-    sns.scatterplot(ax=axes[0,2], data=df, x='src_x', y='src_z', hue='part')
-    sns.scatterplot(ax=axes[1,0], data=df, x='dest_x', y='dest_y', hue='part')
-    sns.scatterplot(ax=axes[1,1], data=df, x='dest_z', y='dest_y', hue='part')
-    sns.scatterplot(ax=axes[1,2], data=df, x='dest_x', y='dest_z', hue='part')
+    sns.scatterplot(ax=axes[0,1], data=df, x='dest_x', y='dest_y', hue='part')
+    sns.scatterplot(ax=axes[1,0], data=df, x='src_x', y='src_z', hue='part')
+    sns.scatterplot(ax=axes[1,1], data=df, x='dest_x', y='dest_z', hue='part')
+    sns.scatterplot(ax=axes[2,0], data=df, x='src_z', y='src_y', hue='part')
+    sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
     plt.show()
 
     # Export pkl
@@ -451,9 +456,9 @@ def get_pose_quaternion(body_parts, update_parts, df, poses):
 
 def get_pose_euler(body_parts, update_parts, df, poses):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
-
+    loss_plt = {}
     for part in body_parts:
-        lr = 0.072 # best lr is 0.072
+        lr = 0.045 # best lr is 0.072
         state = 0
         pose = [0,0,0]
         min_loss = [10,10,10]
@@ -471,7 +476,7 @@ def get_pose_euler(body_parts, update_parts, df, poses):
             poses[body_parts[body_parts.index(part)-1]] = \
                 bpy.data.objects['SRC'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
             continue
-
+        
         while True:
             part_df = df.loc[df['joint'] == part]
             parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
@@ -519,7 +524,7 @@ def get_pose_euler(body_parts, update_parts, df, poses):
                     direct = 1
                     state = state + 1
 
-            # if body_parts[body_parts.index(part)-1] == 'right_shoulder':
+            # if body_parts[body_parts.index(part)-1] == 'spine1':
             #     print('state: ', state, pose)
             #     print('loss', src_angle, dest_angle, loss, min_loss)
 
@@ -531,14 +536,14 @@ def get_pose_euler(body_parts, update_parts, df, poses):
                        state = 0
                        min_loss = [10,10,10]
                     else:
-                        print('loss: ', loss, min_loss)
+                        print('loss: ', loss)
                         break
                 elif (loss[0] > 0.35) or (loss[1] > 0.35) or (loss[2] > 0.35):
-                    print('try')
+                    # print('try')
                     state = 0
                     min_loss = [10,10,10]
                 else:
-                    print('loss: ', loss, min_loss)
+                    print('loss: ', loss)
                     break
 
             set_pose_euler(bpy.data.objects['DEST'], body_parts[body_parts.index(part)-1], 
@@ -552,6 +557,119 @@ def get_pose_euler(body_parts, update_parts, df, poses):
             
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_euler.to_quaternion()
+
+def get_pose_genetic(body_parts, update_parts, df):
+    Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 
+            'left_collar', 'right_collar']
+    poses = list()
+    for part in body_parts:
+        if part in Root: continue
+        print(body_parts[body_parts.index(part)-1])
+        
+        pose_bound = [[-2.0, 2.0], [-2.0, 2.0], [-2.0, 2.0]]
+        n_iter = 30
+        n_bits = 32
+        n_pop = 100
+        r_cross = 0.9
+        r_mut = 1.0 / (float(n_bits) * len(pose_bound))
+        parent = body_parts[body_parts.index(part)-1]
+        child = part
+
+        # initial population of random bitstring
+        pop = [randint(0, 2, n_bits*len(pose_bound)).tolist() for _ in range(n_pop)]
+        # track of best solution
+        best, best_eval = 0, objective_loss(decode(pose_bound, n_bits, pop[0]),
+                                              child, parent, update_parts, df)
+        
+        # enumerate generations
+        for gen in range(n_iter):
+            # decode population
+            decoded = [decode(pose_bound, n_bits, p) for p in pop]
+            # evaluate all candidates in the population
+            scores = [objective_loss(d, child, parent, update_parts, df) \
+                                    for d in decoded]
+            # check for new best solution
+            for i in range(n_pop):
+                if scores[i] < best_eval:
+                    best, best_eval = pop[i], scores[i]
+                    print(">%d, new best f(%s) = %f" %(gen,  decoded[i], scores[i]))
+            # select parents
+            selected = [selection(pop, scores) for _ in range(n_pop)]
+            # create the next generation
+            children = list()
+            for i in range(0, n_pop, 2):
+                # selected parents in pairs
+                p1, p2 = selected[i], selected[i+1]
+                # crossover and mutation
+                for c in crossover(p1, p2, r_cross):
+                    mutation(c, r_mut)
+                    children.append(c)
+            pop = children
+        
+        pose = decode(pose_bound, n_bits, best)
+        print('pose: %s, loss: %f'%(pose, best_eval))
+        # poses[body_parts[body_parts.index(part)-1]] = pose
+
+def objective_loss(pose, child, parent, update_parts, df):
+    # set the pose according to pose parameter
+    set_pose(bpy.data.objects['DEST'], parent, pose)
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+
+    # Get position of each part of body part
+    for part in update_parts:              
+        df.loc[df['joint'] == part, ['dest_x', 'dest_y', 'dest_z']] = \
+            np.array(bpy.data.objects['DEST'].pose.bones[part].head)
+    part_df = df.loc[df['joint'] == child]
+    parent_df = df.loc[df['joint'] == parent]
+
+    src_angle = get_2D_angle(part_df, parent_df, 'src')
+    dest_angle = get_2D_angle(part_df, parent_df, 'dest')
+    loss = abs(src_angle - dest_angle)
+    return sum(loss)
+
+def mutation(bitstring, r_mut):
+	for i in range(len(bitstring)):
+		# check for a mutation
+		if rand() < r_mut:
+			# flip the bit
+			bitstring[i] = 1 - bitstring[i]
+
+def crossover(p1, p2, r_cross):
+	# children are copies of parents by default
+	c1, c2 = p1.copy(), p2.copy()
+	# check for recombination
+	if rand() < r_cross:
+		# select crossover point that is not on the end of the string
+		pt = randint(1, len(p1)-2)
+		# perform crossover
+		c1 = p1[:pt] + p2[pt:]
+		c2 = p2[:pt] + p1[pt:]
+	return [c1, c2]
+
+def selection(pop, scores, k=3):
+	# first random selection
+	selection_ix = randint(len(pop))
+	for ix in randint(0, len(pop), k-1):
+		# check if better (e.g. perform a tournament)
+		if scores[ix] < scores[selection_ix]:
+			selection_ix = ix
+	return pop[selection_ix]
+
+def decode(bounds, n_bits, bitstring):
+	decoded = list()
+	largest = 2**n_bits
+	for i in range(len(bounds)):
+		# extract the substring
+		start, end = i * n_bits, (i * n_bits)+n_bits
+		substring = bitstring[start:end]
+		# convert bitstring to a string of chars
+		chars = ''.join([str(s) for s in substring])
+		# convert string to integer
+		integer = int(chars, 2)
+		# scale integer to desired range
+		value = bounds[i][0] + (integer/largest) * (bounds[i][1] - bounds[i][0])
+		decoded.append(value)
+	return decoded
 
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)

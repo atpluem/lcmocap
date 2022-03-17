@@ -8,7 +8,7 @@ def getNeighbors(vertices, faces):
     mesh = trimesh.Trimesh(vertices, faces, process=False)
     graph = nx.from_edgelist(mesh.edges_unique)
     neighbors = [list(graph[i].keys()) for i in range(len(vertices))]
-    return np.array(neighbors)
+    return neighbors
 
 def getLaplacianOffset(vertices, neighbors):
     offset = np.zeros((len(vertices), 3))

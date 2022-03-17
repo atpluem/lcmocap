@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import math
 import seaborn as sns
-import bpy
 
 from tkinter import *
 from tqdm import tqdm
@@ -26,17 +25,13 @@ from utils import (Tensor)
 from human_body_prior.tools.model_loader import load_vposer
 from shape import *
 from volume import *
-from mathutils import Vector, Quaternion
-from sklearn.decomposition import PCA
-from matplotlib.colors import ListedColormap
-
 
 def run_retarget_mesh(
     config,
-    src_path,
-    dest_path,
+    src_mesh,
+    src_std_mesh,
+    dest_mesh,
     out_path,
-    use_cuda=True,
     batch_size=1,
     visualize=False
 ) -> Dict[str, Tensor]:
@@ -45,8 +40,8 @@ def run_retarget_mesh(
     ##                  Parameter setting                       ##
     ##############################################################
 
-    assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
-    device = torch.device('cuda') if use_cuda else torch.device('cpu')
+    # assert batch_size == 1, 'PyTorch L-BFGS only supports batch_size == 1'
+    # device = torch.device('cuda') if use_cuda else torch.device('cpu')
 
     ''' 
         Parameters weighting (g: gamma)
@@ -64,39 +59,39 @@ def run_retarget_mesh(
     ##                   Mesh retargeting                       ##
     ##############################################################
     
-    # vsource = source_mesh['vertices']
-    # vsoutceStd = source_std_mesh['vertices']
-    # vtarget = target_mesh['vertices']
-    # fsource = source_mesh['faces']
-    # fsourceStd = source_std_mesh['faces']
-    # ftarget = target_mesh['faces']
+    # Get vertices and faces of meshs
+    src_vertice = src_mesh['vertices']; src_face = src_mesh['faces']
+    src_std_vertice = src_std_mesh['vertices']; src_std_face = src_std_mesh['faces']
+    dest_vertice = dest_mesh['vertices']; dest_face = dest_mesh['faces']
 
-    # smpl_segm = getPartSegm(config)
+    # Get body segmentation
+    smpl_segm = getPartSegm(config)
 
-    # source_height = getHight(vsoutceStd)
-    # target_height = getHight(vtarget)
-    # vsource = setScale(vsource, target_height/source_height)
+    # Set scale of source vertice
+    src_height = getHight(src_std_vertice)
+    dest_height = getHight(dest_vertice)
+    src_vertice = setScale(src_vertice, dest_height/src_height)
 
-    # nbSource = getNeighbors(vsource, fsource)
-    # nbTarget = getNeighbors(vtarget, ftarget)
+    src_neighbor = getNeighbors(src_vertice, src_face)
+    dest_neighbor = getNeighbors(dest_vertice, dest_face)
 
-    # offsetTarget = getLaplacianOffset(vtarget, nbTarget)
-    # target_vol = getVolumes(vtarget, ftarget, smpl_segm)
-    
+    dest_offset = getLaplacianOffset(dest_vertice, dest_neighbor)
+    dest_vol = getVolumes(dest_vertice, dest_face, smpl_segm)
+
     # for i in range(1):
-    #     offsetSource = getLaplacianOffset(vsource, nbSource)
-    #     shapeDirection = getShapeDirection(vsource, nbSource, offsetSource, offsetTarget)
-    #     EShape = getShapeEnergy(offsetSource, offsetTarget)
+    #     src_offset = getLaplacianOffset(src_vertice, src_neighbor)
+    #     shape_direction = getShapeDirection(src_vertice, src_neighbor, src_offset, dest_offset)
+    #     shape_energy = getShapeEnergy(src_offset, dest_offset)
 
-    #    source_vol = getVolumes(vsource, fsource, smpl_segm)
-    #    volumeDirection = getVolumeDirection(source_vol, target_vol, offsetSource, smpl_segm)
-    #    EVol = getVolumeEnergy(source_vol, target_vol)
+    #     src_vol = getVolumes(src_vertice, src_face, smpl_segm)
+    #     volume_direction = getVolumeDirection(src_vol, dest_vol, src_offset, smpl_segm)
+    #     volume_energy = getVolumeEnergy(src_vol, dest_vol)
         
-    #    vsource += eps*(shapeDirection)
+    #     src_vertice += (shape_direction)
 
-    # if visualize:
-    #     mesh = trimesh.Trimesh(vsource, fsource, process=False)
-    #     mesh.show()
+    if visualize:
+        mesh = trimesh.Trimesh(src_vertice, src_face, process=False)
+        mesh.show()
 
 def setScale(vsource, scale):
     vsource *= scale
