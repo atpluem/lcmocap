@@ -1,30 +1,72 @@
-import bpy
-from mathutils import Matrix, Vector
+import numpy as np
+from mathutils import Vector, Quaternion, Matrix
 
-def state():
-	return bpy.context.object.animation_retarget_state
+def set_pose(armature, bone_name, rodrigues, rodrigues_ref=None):
+    rod = Vector((rodrigues[0], rodrigues[1], rodrigues[2]))
+    angle_rad = rod.length
+    axis = rod.normalized()
 
-def data_to_matrix4x4(values):
-	return Matrix((values[0:4], values[4:8], values[8:12], values[12:16]))
+    if armature.pose.bones[bone_name].rotation_mode != 'QUATERNION':
+        armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
 
-def matrix4x4_to_data(matrix):
-	values = []
+    quat = Quaternion(axis, angle_rad)
 
-	for y in range(0, 4):
-		for x in range(0, 4):
-			values.append(matrix[y][x])
+    if rodrigues_ref is None:
+        armature.pose.bones[bone_name].rotation_quaternion = quat
+    else:
+        rod_ref = Vector((rodrigues[0], rodrigues[1], rodrigues[2]))
+        rod_result = rod + rod_ref
+        angle_rad_result = rod_result.length
+        axis_result = rod_result.normalized()
+        quat_result = Quaternion(axis_result, angle_rad_result)
+        armature.pose.bones[bone_name].rotation_quaternion = quat_result
 
-	return values
+def set_pose_euler(armature, bone_name, angle):
+    if armature.pose.bones[bone_name].rotation_mode != 'YZX':
+        armature.pose.bones[bone_name].rotation_mode = 'YZX'
 
+    armature.pose.bones[bone_name].rotation_euler = angle
+    # armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
 
-def rot_mat(mat):
-	return mat.to_quaternion().to_matrix().to_4x4()
+def unit_vector(vector):
+    return vector / np.linalg.norm(vector)
 
-def loc_mat(mat):
-	return Matrix.Translation(mat.to_translation()).to_4x4()
+def angle_between(v1, v2, dim='2d'):
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
 
-def alert_error(title, message):
-	def draw(self, context):
-		self.layout.label(text=message)
+    if dim == '2d':
+        return np.arccos(np.dot(v1_u, v2_u))
+    elif dim == '3d':
+        return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
-	bpy.context.window_manager.popup_menu(draw, title=title, icon='ERROR')
+def get_2D_angle(part_df, parent_df, targ):
+    dx = part_df[targ+'_x'].values - parent_df[targ+'_x'].values
+    dy = part_df[targ+'_y'].values - parent_df[targ+'_y'].values
+    dz = part_df[targ+'_z'].values - parent_df[targ+'_z'].values
+    
+    return np.array([angle_between([dx[0], dy[0]], [1,0]),
+                     angle_between([dx[0], dz[0]], [1,0]),
+                     angle_between([dz[0], dy[0]], [1,0])])
+
+def get_3D_angle(part_df, parent_df, targ):
+    dx = part_df[targ+'_x'].values - parent_df[targ+'_x'].values
+    dy = part_df[targ+'_y'].values - parent_df[targ+'_y'].values
+    dz = part_df[targ+'_z'].values - parent_df[targ+'_z'].values
+    
+    return np.array([angle_between([dx[0], dz[0], dy[0]], [1,0,0], '3d')])
+
+def get_3D_angle_axis(part_df, parent_df):
+    dx = part_df['src_x'].values - parent_df['src_x'].values
+    dy = part_df['src_y'].values - parent_df['src_y'].values
+    dz = part_df['src_z'].values - parent_df['src_z'].values
+    src_axis = unit_vector([dx[0], dy[0], dz[0]])
+
+    dx = part_df['dest_x'].values - parent_df['dest_x'].values
+    dy = part_df['dest_y'].values - parent_df['dest_y'].values
+    dz = part_df['dest_z'].values - parent_df['dest_z'].values
+    dest_axis = unit_vector([dx[0], dy[0], dz[0]])
+    
+    axis = src_axis - dest_axis
+    angle = angle_between(src_axis, dest_axis, '3d')
+    return axis, angle
