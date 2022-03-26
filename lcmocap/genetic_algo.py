@@ -23,9 +23,9 @@ def genetic_algo(body_parts, update_parts, df, poses, bpy):
         print(body_parts[body_parts.index(part)-1])
         
         pose_bound = [[-1.6, 1.6], [-1.6, 1.6], [-1.6, 1.6]]
-        n_iter = 25
+        n_iter = 30
         n_bits = 32
-        n_pop = 50
+        n_pop = 40
         r_cross = 0.9
         r_mut = 1.0 / (float(n_bits) * len(pose_bound))
         parent = body_parts[body_parts.index(part)-1]
@@ -80,6 +80,31 @@ def objective_loss(pose, child, parent, update_parts, df, bpy):
     src_angle = get_2D_angle(part_df, parent_df, 'src')
     dest_angle = get_2D_angle(part_df, parent_df, 'dest')
     loss = abs(src_angle - dest_angle)
+
+    if ((parent_df['src_y'].values > part_df['src_y'].values) and \
+       (parent_df['dest_y'].values < part_df['dest_y'].values)) or \
+       ((parent_df['src_y'].values < part_df['src_y'].values) and \
+       (parent_df['dest_y'].values > part_df['dest_y'].values)) or \
+       ((parent_df['src_z'].values > part_df['src_z'].values) and \
+       (parent_df['dest_z'].values < part_df['dest_z'].values)) or \
+       ((parent_df['src_z'].values < part_df['src_z'].values) and \
+       (parent_df['dest_z'].values > part_df['dest_z'].values)) or \
+       ((parent_df['src_x'].values > part_df['src_x'].values) and \
+       (parent_df['dest_x'].values < part_df['dest_x'].values)) or \
+       ((parent_df['src_x'].values < part_df['src_x'].values) and \
+       (parent_df['dest_x'].values > part_df['dest_x'].values)):
+        return 2*sum(loss)
+    
+    # if ((parent_df['src_z'].values > part_df['src_z'].values) and \
+    #    (parent_df['dest_z'].values < part_df['dest_z'].values)) or \
+    #    ((parent_df['src_z'].values < part_df['src_z'].values) and \
+    #    (parent_df['dest_z'].values > part_df['dest_z'].values)):
+    #     return 1
+
+    # src_angle = get_3D_angle(part_df, parent_df, 'src')
+    # dest_angle = get_3D_angle(part_df, parent_df, 'dest')
+    # loss3D = abs(src_angle - dest_angle)
+
     return sum(loss)
 
 def mutation(bitstring, r_mut):

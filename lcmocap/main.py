@@ -22,7 +22,6 @@ def main() -> None:
 
     # keypoints = op.openposeAPI()
 
-    # ===== Retargeting =====
 
     ##############################################################
     ##                     Retargeting                          ##

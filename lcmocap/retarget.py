@@ -14,6 +14,7 @@ from numpy.random import randint, rand
 from genetic_algo import get_pose_ga
 from euler_rotate import get_pose_euler
 from quaternion_rotate import get_pose_quaternion
+from sklearn.decomposition import PCA
 
 def run_retarget(
     config,
@@ -229,6 +230,10 @@ def run_retarget(
     ##               Retargeting algorithm                      ##
     ##############################################################
 
+    ''' Try new domain '''
+    # pca = PCA(n_components=1)
+    # df.to_csv(out_path+'/body_df.csv')
+
     # Try to adjust destination pose
     # get_pose_quaternion(body_segm, df, poses, bpy)
     # get_pose_euler(body_segm, df, poses, bpy)   # Best solution
@@ -236,26 +241,26 @@ def run_retarget(
 
     # Print pose parameter
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)
-    print(axis, '\n', angle)
+    # print(axis, '\n', angle)
 
     # Visualize
-    fig, axes = plt.subplots(3, 2)
-    sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
-    sns.scatterplot(ax=axes[0,1], data=df, x='dest_x', y='dest_y', hue='part')
-    sns.scatterplot(ax=axes[1,0], data=df, x='src_x', y='src_z', hue='part')
-    sns.scatterplot(ax=axes[1,1], data=df, x='dest_x', y='dest_z', hue='part')
-    sns.scatterplot(ax=axes[2,0], data=df, x='src_z', y='src_y', hue='part')
-    sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
-    plt.show()
+    # fig, axes = plt.subplots(3, 2)
+    # sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
+    # sns.scatterplot(ax=axes[0,1], data=df, x='dest_x', y='dest_y', hue='part')
+    # sns.scatterplot(ax=axes[1,0], data=df, x='src_x', y='src_z', hue='part')
+    # sns.scatterplot(ax=axes[1,1], data=df, x='dest_x', y='dest_z', hue='part')
+    # sns.scatterplot(ax=axes[2,0], data=df, x='src_z', y='src_y', hue='part')
+    # sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
+    # plt.show()
 
     # Export pkl
-    # result = {}
-    # result['bone_name'] = list(JOINTS)
-    # result['result'] = 'Retargeting'
-    # result['axis_bone'] = axis
-    # result['angle_bone'] = angle
-    # with open(out_path+'/pose_retarg.pkl', 'wb') as file:
-    #     pickle.dump(result, file)
+    result = {}
+    result['bone_name'] = list(JOINTS)
+    result['result'] = 'Retargeting'
+    result['axis_bone'] = axis
+    result['angle_bone'] = angle
+    with open(out_path+'/pose_retarg.pkl', 'wb') as file:
+        pickle.dump(result, file)
     
     # Export FBX
     # bpy.ops.export_scene.fbx(filepath=out_path+'retar.fbx', use_selection=False)
