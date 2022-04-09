@@ -70,3 +70,22 @@ def get_3D_angle_axis(part_df, parent_df):
     axis = src_axis - dest_axis
     angle = angle_between(src_axis, dest_axis, '3d')
     return axis, angle
+
+def new_domain(src, dest):
+    src_shoulder = [src.pose.bones['left_shoulder'].head, src.pose.bones['right_shoulder'].head]
+    src_hip = [src.pose.bones['left_hip'].head, src.pose.bones['right_hip'].head]
+    dest_shoulder = [dest.pose.bones['left_shoulder'].head, dest.pose.bones['right_shoulder'].head]
+    dest_hip = [dest.pose.bones['left_hip'].head, dest.pose.bones['right_hip'].head]
+    
+    # now we can calcualte scale only x, y axis
+    src_scale = [(src_shoulder[0][0] - src_shoulder[1][0])/2,
+                (src_shoulder[0][1] - src_hip[0][1])/2] 
+    src_center = [(src_shoulder[0][0] + src_shoulder[1][0])/2, 
+                (src_shoulder[0][1] + src_hip[0][1])/2]
+    
+    dest_scale = [(dest_shoulder[0][0] - dest_shoulder[1][0])/2,
+                (dest_shoulder[0][1] - dest_hip[0][1])/2] 
+    dest_center = [(dest_shoulder[0][0] + dest_shoulder[1][0])/2, 
+                (dest_shoulder[0][1] + dest_hip[0][1])/2]
+
+    return {'src_scale': src_scale, 'dest_scale': dest_scale}

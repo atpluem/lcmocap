@@ -76,20 +76,20 @@ def run_retarget_mesh(
     dest_neighbor = getNeighbors(dest_vertice, dest_face)
 
     dest_offset = getLaplacianOffset(dest_vertice, dest_neighbor)
-    dest_vol = getVolumes(dest_vertice, dest_face, smpl_segm)
+    # dest_vol = getVolumes(dest_vertice, dest_face, smpl_segm)
 
-    # for i in range(1):
-    #     src_offset = getLaplacianOffset(src_vertice, src_neighbor)
-    #     shape_direction = getShapeDirection(src_vertice, src_neighbor, src_offset, dest_offset)
-    #     shape_energy = getShapeEnergy(src_offset, dest_offset)
+    for i in range(1):
+        src_offset = getLaplacianOffset(src_vertice, src_neighbor)
+        shape_direction = getShapeDirection(src_vertice, src_neighbor, src_offset, dest_offset)
+        shape_energy = getShapeEnergy(src_offset, dest_offset)
 
-    #     src_vol = getVolumes(src_vertice, src_face, smpl_segm)
-    #     volume_direction = getVolumeDirection(src_vol, dest_vol, src_offset, smpl_segm)
-    #     volume_energy = getVolumeEnergy(src_vol, dest_vol)
+        # src_vol = getVolumes(src_vertice, src_face, smpl_segm)
+        # volume_direction = getVolumeDirection(src_vol, dest_vol, src_offset, smpl_segm)
+        # volume_energy = getVolumeEnergy(src_vol, dest_vol)
         
-    #     src_vertice += (shape_direction)
+        src_vertice += eps*(shape_direction)
 
-    if visualize:
+    if True:
         mesh = trimesh.Trimesh(src_vertice, src_face, process=False)
         mesh.show()
 

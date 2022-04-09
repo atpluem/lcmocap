@@ -77,10 +77,6 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy):
                     direct = 1
                     state = state + 1
 
-            # if body_parts[body_parts.index(part)-1] == 'spine1':
-            #     print('state: ', state, pose)
-            #     print('loss', src_angle, dest_angle, loss, min_loss)
-
             if state == 3:
                 if parent_df['joint'].values == 'spine3':
                     if df.loc[df['joint'] == 'left_collar']['dest_x'].values < \
@@ -92,7 +88,6 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy):
                         print('loss: ', loss)
                         break
                 elif (loss[0] > 0.35) or (loss[1] > 0.35) or (loss[2] > 0.35):
-                    # print('try')
                     state = 0
                     min_loss = [10,10,10]
                 else:

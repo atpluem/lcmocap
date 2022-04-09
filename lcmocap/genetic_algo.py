@@ -4,17 +4,17 @@ import time
 from numpy.random import randint, rand
 from utils.utilfuncs import *
 
-def get_pose_ga(body_segm, df, poses, bpy):
+def get_pose_ga(body_segm, df, poses, bpy, scales):
     start = time.time()
-    genetic_algo(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+body_segm['right_arm'], df, poses, bpy)
-    genetic_algo(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy)
-    genetic_algo(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy)
-    genetic_algo(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy)
-    genetic_algo(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy)
+    genetic_algo(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+body_segm['right_arm'], df, poses, bpy, scales)
+    genetic_algo(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, scales)
+    genetic_algo(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, scales)
+    genetic_algo(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, scales)
+    genetic_algo(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, scales)
     stop = time.time()
     print('Take time:', stop-start)
 
-def genetic_algo(body_parts, update_parts, df, poses, bpy):
+def genetic_algo(body_parts, update_parts, df, poses, bpy, scales):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 
             'left_collar', 'right_collar']
     
@@ -35,13 +35,13 @@ def genetic_algo(body_parts, update_parts, df, poses, bpy):
         pop = [randint(0, 2, n_bits*len(pose_bound)).tolist() for _ in range(n_pop)]
         # track of best solution
         best, best_eval = 0, objective_loss(decode(pose_bound, n_bits, pop[0]),
-                                              child, parent, update_parts, df, bpy)
+                                              child, parent, update_parts, df, bpy, scales)
         # enumerate generations
         for gen in range(n_iter):
             # decode population
             decoded = [decode(pose_bound, n_bits, p) for p in pop]
             # evaluate all candidates in the population
-            scores = [objective_loss(d, child, parent, update_parts, df, bpy) \
+            scores = [objective_loss(d, child, parent, update_parts, df, bpy, scales) \
                                     for d in decoded]
             # check for new best solution
             for i in range(n_pop):
@@ -65,21 +65,38 @@ def genetic_algo(body_parts, update_parts, df, poses, bpy):
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
 
-def objective_loss(pose, child, parent, update_parts, df, bpy):
+def objective_loss(pose, child, parent, update_parts, df, bpy, scales):
     # set the pose according to pose parameter
     set_pose(bpy.data.objects['DEST'], parent, pose)
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
-    # Get position of each part of body part
+    # update new position of each part of body part
     for part in update_parts:              
         df.loc[df['joint'] == part, ['dest_x', 'dest_y', 'dest_z']] = \
             np.array(bpy.data.objects['DEST'].pose.bones[part].head)
     part_df = df.loc[df['joint'] == child]
     parent_df = df.loc[df['joint'] == parent]
 
+    # calculate angle loss
     src_angle = get_2D_angle(part_df, parent_df, 'src')
     dest_angle = get_2D_angle(part_df, parent_df, 'dest')
-    loss = abs(src_angle - dest_angle)
+    loss_ang = abs(src_angle - dest_angle)
+
+    # calculate loss expected position of destinstion
+    expect_x = part_df['src_x'].values*scales['dest_scale'][0]/scales['src_scale'][0]
+    observe_x = part_df['dest_x'].values
+    expect_y = part_df['src_y'].values*scales['dest_scale'][1]/scales['src_scale'][1]
+    observe_y = part_df['dest_y'].values
+    x = abs(expect_x-observe_x)
+    y = abs(expect_y-observe_y)
+
+    # total loss
+    loss = x+y+sum(loss_ang)
+
+    if parent_df['joint'].values == 'spine3':
+        if df.loc[df['joint'] == 'left_collar']['dest_x'].values < \
+           df.loc[df['joint'] == 'right_collar']['dest_x'].values:
+           return 5*loss
 
     if ((parent_df['src_y'].values > part_df['src_y'].values) and \
        (parent_df['dest_y'].values < part_df['dest_y'].values)) or \
@@ -93,19 +110,9 @@ def objective_loss(pose, child, parent, update_parts, df, bpy):
        (parent_df['dest_x'].values < part_df['dest_x'].values)) or \
        ((parent_df['src_x'].values < part_df['src_x'].values) and \
        (parent_df['dest_x'].values > part_df['dest_x'].values)):
-        return 2*sum(loss)
-    
-    # if ((parent_df['src_z'].values > part_df['src_z'].values) and \
-    #    (parent_df['dest_z'].values < part_df['dest_z'].values)) or \
-    #    ((parent_df['src_z'].values < part_df['src_z'].values) and \
-    #    (parent_df['dest_z'].values > part_df['dest_z'].values)):
-    #     return 1
+        return 5*loss
 
-    # src_angle = get_3D_angle(part_df, parent_df, 'src')
-    # dest_angle = get_3D_angle(part_df, parent_df, 'dest')
-    # loss3D = abs(src_angle - dest_angle)
-
-    return sum(loss)
+    return loss
 
 def mutation(bitstring, r_mut):
 	for i in range(len(bitstring)):

@@ -22,7 +22,6 @@ def main() -> None:
 
     # keypoints = op.openposeAPI()
 
-
     ##############################################################
     ##                     Retargeting                          ##
     ##############################################################
@@ -66,7 +65,7 @@ def main() -> None:
     #                   out_path=output_folder,
     #                   visualize=False)
 
-    # Fitting Retarget
+    # Fitting Retarget RIGGING
     run_retarget(config=config,
                 pose_params_path=pose_params_path['pkl_path'],
                 src_path=src_fbx_path['fbx_path'],

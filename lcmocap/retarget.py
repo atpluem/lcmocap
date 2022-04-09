@@ -56,6 +56,8 @@ def run_retarget(
     'head', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r',
     'hand_l', 'hand_r']
 
+    PEGGY_JOINT_NAMES = []
+
     JOINTS = config.datasets.joints
 
     print(pose_params_path)
@@ -162,9 +164,13 @@ def run_retarget(
             src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
             part_idx = part_idx + 1
 
+    '''
+        Calculate new Domain of both Riggings
+    '''
+    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'])
+
     # Scale source armature,then initial pose of both armatures 
-    scale = dest_joints['head'][1] / src_joints['head'][1]
-    poses = {}
+    body_scale = dest_joints['head'][1] / src_joints['head'][1]
     for idx, body_parts in enumerate(SMPLX_JOINT_NAMES):
         # bpy.data.objects['SRC'].pose.bones[body_parts].scale *= scale
         if bpy.data.objects['SRC'].pose.bones[body_parts].name == 'pelvis':
@@ -212,7 +218,6 @@ def run_retarget(
     RightArm = ['right_collar', 'right_shoulder', 'right_elbow', 'right_wrist']
     LeftLeg = ['left_hip', 'left_knee', 'left_ankle', 'left_foot']
     RightLeg = ['right_hip', 'right_knee', 'right_ankle', 'right_foot']
-    UpdateSpine = Spine + LeftArm + RightArm
     body_segm = dict()
     body_segm['spine'] = Spine
     body_segm['left_arm'] = LeftArm
@@ -230,14 +235,14 @@ def run_retarget(
     ##               Retargeting algorithm                      ##
     ##############################################################
 
-    ''' Try new domain '''
-    # pca = PCA(n_components=1)
-    # df.to_csv(out_path+'/body_df.csv')
+    # df['src_x'] = df['src_x']/scale['src_scale'][0]
+    # print(df)
 
     # Try to adjust destination pose
+    poses = dict()
     # get_pose_quaternion(body_segm, df, poses, bpy)
     # get_pose_euler(body_segm, df, poses, bpy)   # Best solution
-    get_pose_ga(body_segm, df, poses, bpy)    # GA
+    get_pose_ga(body_segm, df, poses, bpy, scales)    # GA
 
     # Print pose parameter
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)
