@@ -18,6 +18,7 @@ class DatasetConfig:
     src_std_dir: str = 'input/source_std'
     dest_dir: str =  'input/destination'
     pose_params_dir: str = 'input/source'
+    mesh_name: str = ''
     joints: List = field(default_factory=lambda: [''])
     
 @dataclass

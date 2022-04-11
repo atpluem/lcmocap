@@ -98,18 +98,23 @@ class PKLLoadfile_Operator(bpy.types.Operator, ImportHelper):
     @classmethod
     def poll(cls, context):
         try:
-            return True
+            if (context.active_object is not None):
+                return True
+            else:
+                return False
         except:
             return False
 
     def execute(self, context):
-        armature = None
-        for obj in bpy.data.objects:
-            if obj.type == "ARMATURE":
-                armature = obj
+        armature = bpy.context.object
 
-        if armature == None:
+        if armature.type == "MESH":
+            armature = armature.parent
+        elif armature.type != "ARMATURE":
             return {"FINISHED"}
+
+        # if armature == None:
+        #     return {"FINISHED"}
 
         # body_pose = None
 

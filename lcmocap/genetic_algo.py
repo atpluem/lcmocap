@@ -87,11 +87,14 @@ def objective_loss(pose, child, parent, update_parts, df, bpy, scales):
     observe_x = part_df['dest_x'].values
     expect_y = part_df['src_y'].values*scales['dest_scale'][1]/scales['src_scale'][1]
     observe_y = part_df['dest_y'].values
+    expect_z = part_df['src_z'].values*scales['dest_scale'][2]/scales['src_scale'][2]
+    observe_z = part_df['dest_z'].values
     x = abs(expect_x-observe_x)
     y = abs(expect_y-observe_y)
+    z = abs(expect_z-observe_z)
 
     # total loss
-    loss = x+y+sum(loss_ang)
+    loss = x+y+z+sum(loss_ang)
 
     if parent_df['joint'].values == 'spine3':
         if df.loc[df['joint'] == 'left_collar']['dest_x'].values < \

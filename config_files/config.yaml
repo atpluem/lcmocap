@@ -3,29 +3,30 @@ datasets:
   src_std_dir: 'input/source_std'
   dest_dir: 'input/destination'
   pose_params_dir: 'input/source'
+  mesh_name: 'H_DDS_HighRes'
   joints:
-    - root
-    - upperleg_l
-    - upperleg_r
-    - spine_01
-    - lowerleg_l
-    - lowerleg_r
-    - spine_02
-    - foot_l
-    - foot_r
-    - spine_03
-    - ball_l
-    - ball_r
-    - neck
-    - shoulder_l
-    - shoulder_r
-    - head
-    - upperarm_l
-    - upperarm_r
-    - lowerarm_l
-    - lowerarm_r
-    - hand_l
-    - hand_r
+    - Hips
+    - LeftUpLeg
+    - RightUpLeg
+    - Spine
+    - LeftLeg
+    - RightLeg
+    - Spine1
+    - LeftFoot
+    - RightFoot
+    - Spine2
+    - LeftToeBase
+    - RightToeBase
+    - Neck
+    - LeftShoulder
+    - RightShoulder
+    - Head
+    - LeftArm
+    - RightArm
+    - LeftForeArm
+    - RightForeArm
+    - LeftHand
+    - RightHand
 
 body_model:
   model_type: 'smpl'

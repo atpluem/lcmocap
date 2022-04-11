@@ -11,6 +11,7 @@ from utils import (Tensor)
 from mathutils import Vector, Quaternion, Matrix
 from utils.utilfuncs import *
 from numpy.random import randint, rand
+from genetic_algo_rot import get_pose_ga_rot
 from genetic_algo import get_pose_ga
 from euler_rotate import get_pose_euler
 from quaternion_rotate import get_pose_quaternion
@@ -56,11 +57,14 @@ def run_retarget(
     'head', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r',
     'hand_l', 'hand_r']
 
-    PEGGY_JOINT_NAMES = []
+    PEGGY_JOINT_NAMES = ['Hips', 'LeftUpLeg', 'RightUpLeg', 'Spine',
+    'LeftLeg', 'RightLeg', 'Spine1', 'LeftFoot', 'RightFoot',
+    'Spine2', 'LeftToeBase', 'RightToeBase', 'Neck', 'LeftShoulder', 'RightShoulder',
+    'Head', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm',
+    'LeftHand', 'RightHand']
 
     JOINTS = config.datasets.joints
 
-    print(pose_params_path)
     with open(pose_params_path, 'rb') as f:
         data = pickle.load(f, encoding='latin1')
 
@@ -96,22 +100,26 @@ def run_retarget(
     bpy.ops.import_scene.fbx(filepath=src_path)
     bpy.ops.object.select_all(action='DESELECT')
     for ob in bpy.data.objects:
-        if ob.type != 'ARMATURE':
+        if ob.type != 'ARMATURE' and ob.name != 'Boy01_Body_Geo':
             bpy.data.objects[ob.name].select_set(True)
+        elif ob.name == 'Boy01_Body_Geo':
+            bpy.data.objects[ob.name].select_set(False)
         elif ob.type == 'ARMATURE' and ob.name != 'SRC':
             bpy.data.objects[ob.name].name = 'SRC'
 
     bpy.ops.import_scene.fbx(filepath=dest_path)
     bpy.ops.object.select_all(action='DESELECT')
     for ob in bpy.data.objects:
-        if ob.type != 'ARMATURE':
+        if ob.type != 'ARMATURE' and ob.name not in ['Boy01_Body_Geo',config.datasets.mesh_name]:
             bpy.data.objects[ob.name].select_set(True)
+        elif ob.name == config.datasets.mesh_name:
+            bpy.data.objects[ob.name].select_set(False)
         elif ob.type == 'ARMATURE' and ob.name != 'SRC' and ob.name != 'DEST':
             bpy.data.objects[ob.name].name = 'DEST'
     bpy.ops.object.delete()
 
     '''
-        Initial source and destination pose by mapping body_pose
+        Initial rigginf name of source and destination
     '''
 
     # Destination armature
@@ -167,7 +175,14 @@ def run_retarget(
     '''
         Calculate new Domain of both Riggings
     '''
-    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'])
+    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
+                        bpy.data.objects['Boy01_Body_Geo'], 
+                        bpy.data.objects[config.datasets.mesh_name])
+    
+    # Delete mesh before Retargeting (help improve runtime)
+    bpy.data.objects['Boy01_Body_Geo'].select_set(True)
+    bpy.data.objects[config.datasets.mesh_name].select_set(True)
+    bpy.ops.object.delete()
 
     # Scale source armature,then initial pose of both armatures 
     body_scale = dest_joints['head'][1] / src_joints['head'][1]
@@ -210,7 +225,7 @@ def run_retarget(
     df['dest_x'] = dest_coor[:,0]
     df['dest_y'] = dest_coor[:,1]
     df['dest_z'] = dest_coor[:,2]
-    df['dest_orien'] = dest_orien
+    # df['dest_orien'] = dest_orien
 
     # Define part of body
     Spine = ['pelvis', 'spine1', 'spine2', 'spine3', 'neck', 'head']
@@ -235,14 +250,12 @@ def run_retarget(
     ##               Retargeting algorithm                      ##
     ##############################################################
 
-    # df['src_x'] = df['src_x']/scale['src_scale'][0]
-    # print(df)
-
     # Try to adjust destination pose
     poses = dict()
     # get_pose_quaternion(body_segm, df, poses, bpy)
     # get_pose_euler(body_segm, df, poses, bpy)   # Best solution
-    get_pose_ga(body_segm, df, poses, bpy, scales)    # GA
+    # get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
+    get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
 
     # Print pose parameter
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)
@@ -268,7 +281,7 @@ def run_retarget(
         pickle.dump(result, file)
     
     # Export FBX
-    # bpy.ops.export_scene.fbx(filepath=out_path+'retar.fbx', use_selection=False)
+    # bpy.ops.export_scene.fbx(filepath=out_path+'/retar.fbx', use_selection=False)
 
 def get_axis_angle(poses, joints):
     axis = []; angle = []
