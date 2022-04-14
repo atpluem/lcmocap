@@ -134,7 +134,7 @@ def run_retarget(
             # Check bone orientation
             orien = abs(np.array(bpy.data.objects['DEST'].pose.bones[bone.name].head - \
                                  bpy.data.objects['DEST'].pose.bones[bone.name].tail))
-            if np.argmax(orien) == 2:
+            if (np.argmax(orien) == 0) | (np.argmax(orien) == 2):
                 dest_orien[bone.name] = 'h' # horizontal joint
             elif np.argmax(orien) == 1:
                 dest_orien[bone.name] = 'v' # virtical joint
@@ -225,7 +225,7 @@ def run_retarget(
     df['dest_x'] = dest_coor[:,0]
     df['dest_y'] = dest_coor[:,1]
     df['dest_z'] = dest_coor[:,2]
-    # df['dest_orien'] = dest_orien
+    df['dest_orien'] = dest_orien
 
     # Define part of body
     Spine = ['pelvis', 'spine1', 'spine2', 'spine3', 'neck', 'head']
@@ -253,9 +253,9 @@ def run_retarget(
     # Try to adjust destination pose
     poses = dict()
     # get_pose_quaternion(body_segm, df, poses, bpy)
-    # get_pose_euler(body_segm, df, poses, bpy)   # Best solution
-    # get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
-    get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
+    # get_pose_euler(body_segm, df, poses, bpy)   # Step euler rotation
+    get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
+    # get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
 
     # Print pose parameter
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)

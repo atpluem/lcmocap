@@ -86,7 +86,7 @@ def objective_loss(pose, child, parent, update_parts, df, bpy):
     if parent_df['joint'].values == 'spine3':
         if df.loc[df['joint'] == 'left_collar']['dest_x'].values < \
            df.loc[df['joint'] == 'right_collar']['dest_x'].values:
-           return 5*loss
+           return 10*loss
 
     if ((parent_df['src_y'].values > part_df['src_y'].values) and \
        (parent_df['dest_y'].values < part_df['dest_y'].values)) or \
@@ -100,7 +100,7 @@ def objective_loss(pose, child, parent, update_parts, df, bpy):
        (parent_df['dest_x'].values < part_df['dest_x'].values)) or \
        ((parent_df['src_x'].values < part_df['src_x'].values) and \
        (parent_df['dest_x'].values > part_df['dest_x'].values)):
-        return 5*loss
+        return 10*loss
 
     return loss
 

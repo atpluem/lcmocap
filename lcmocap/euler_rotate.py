@@ -9,7 +9,7 @@ def get_pose_euler(body_segm, df, poses, bpy):
 
 def euler_rotation(body_parts, update_parts, df, poses, bpy):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
-    loss_plt = {}
+    
     for part in body_parts:
         lr = 0.072 # best lr is 0.072
         state = 0
