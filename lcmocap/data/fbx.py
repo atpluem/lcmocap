@@ -18,7 +18,7 @@ class FBXFolder(Dataset):
     ) -> None:
 
         if exts is None:
-            exts = ['.fbx']
+            exts = ['.fbx', 'FBX']
 
         self.fbx_folder = osp.expandvars(fbx_folder)
 

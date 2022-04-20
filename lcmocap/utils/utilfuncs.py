@@ -1,4 +1,8 @@
+import imp
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 from mathutils import Vector, Quaternion, Matrix
 
 def set_pose(armature, bone_name, rodrigues, rodrigues_ref=None):
@@ -104,3 +108,27 @@ def new_domain(src, dest, src_mesh, dest_mesh):
                 (dest_shoulder[0][1] + dest_hip[0][1])/2]
 
     return {'src_scale': src_scale, 'dest_scale': dest_scale}
+
+def get_axis_angle(poses, joints):
+    axis = []; angle = []
+    for p in joints[1:]:
+        if p in poses.keys():
+            a, n = poses[p].to_axis_angle()
+            axis.append(a[:])
+            angle.append(n)
+        else:
+            axis.append((0, 0, 0))
+            angle.append(0)
+    return axis, angle
+
+def total_loss_plot(total_loss, max_itr):
+    losses = np.zeros((max_itr,))
+
+    for k in total_loss.keys():
+        for idx, loss in enumerate(total_loss[k]):
+            if idx >= 30: break
+            losses[idx] += loss
+    
+    sns.lineplot(x=range(max_itr), y=losses).set(title='Sum of loss each iteration',
+        xlabel='number of iteration', ylabel='total loss(radian)')
+    plt.show()

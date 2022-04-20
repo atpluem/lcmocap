@@ -63,6 +63,12 @@ def run_retarget(
     'Head', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm',
     'LeftHand', 'RightHand']
 
+    STICK_JOINT_NAMES = ['Base HumanSpine1', 'Base HumanLThigh', 'Base HumanRThigh', 'Base HumanSpine2',
+    'Base HumanLCalf', 'Base HumanRCalf', 'Base HumanSpine3', 'Base HumanLFoot', 'Base HumanRFoot',
+    'Base HumanSpine4', 'Base HumanLDigit11', 'Base HumanRDigit11', 'Base HumanNeck2', 'Base HumanLCollarbone', 'Base HumanRCollarbone',
+    'Base HumanHead', 'Base HumanLUpperarm', 'Base HumanRUpperarm', 'Base HumanLForearm', 'Base HumanLForearm',
+    'Base HumanLPalm', 'Base HumanRPalm']
+
     JOINTS = config.datasets.joints
 
     with open(pose_params_path, 'rb') as f:
@@ -175,9 +181,9 @@ def run_retarget(
     '''
         Calculate new Domain of both Riggings
     '''
-    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
-                        bpy.data.objects['Boy01_Body_Geo'], 
-                        bpy.data.objects[config.datasets.mesh_name])
+    # scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
+    #                     bpy.data.objects['Boy01_Body_Geo'], 
+    #                     bpy.data.objects[config.datasets.mesh_name])
     
     # Delete mesh before Retargeting (help improve runtime)
     bpy.data.objects['Boy01_Body_Geo'].select_set(True)
@@ -253,7 +259,7 @@ def run_retarget(
     # Try to adjust destination pose
     poses = dict()
     # get_pose_quaternion(body_segm, df, poses, bpy)
-    # get_pose_euler(body_segm, df, poses, bpy)   # Step euler rotation
+    # total_loss = get_pose_euler(body_segm, df, poses, bpy)   # euler rotation
     get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
     # get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
 
@@ -271,6 +277,8 @@ def run_retarget(
     # sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
     # plt.show()
 
+    total_loss_plot(total_loss, 30)
+
     # Export pkl
     result = {}
     result['bone_name'] = list(JOINTS)
@@ -283,14 +291,3 @@ def run_retarget(
     # Export FBX
     # bpy.ops.export_scene.fbx(filepath=out_path+'/retar.fbx', use_selection=False)
 
-def get_axis_angle(poses, joints):
-    axis = []; angle = []
-    for p in joints[1:]:
-        if p in poses.keys():
-            a, n = poses[p].to_axis_angle()
-            axis.append(a[:])
-            angle.append(n)
-        else:
-            axis.append((0, 0, 0))
-            angle.append(0)
-    return axis, angle
