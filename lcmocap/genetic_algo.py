@@ -5,16 +5,20 @@ from numpy.random import randint, rand
 from utils.utilfuncs import *
 
 def get_pose_ga(body_segm, df, poses, bpy, scales):
+    total_loss = dict()
     start = time.time()
-    genetic_algo(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+body_segm['right_arm'], df, poses, bpy, scales)
-    genetic_algo(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, scales)
-    genetic_algo(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, scales)
-    genetic_algo(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, scales)
-    genetic_algo(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, scales)
+    genetic_algo(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+\
+                 body_segm['right_arm'], df, poses, bpy, scales, total_loss)
+    genetic_algo(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, scales, total_loss)
+    genetic_algo(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, scales, total_loss)
+    genetic_algo(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, scales, total_loss)
+    genetic_algo(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, scales, total_loss)
     stop = time.time()
     print('Take time:', stop-start)
 
-def genetic_algo(body_parts, update_parts, df, poses, bpy, scales):
+    return total_loss
+
+def genetic_algo(body_parts, update_parts, df, poses, bpy, scales, total_loss):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 
             'left_collar', 'right_collar']
     
@@ -30,6 +34,7 @@ def genetic_algo(body_parts, update_parts, df, poses, bpy, scales):
         r_mut = 1.0 / (float(n_bits) * len(pose_bound))
         parent = body_parts[body_parts.index(part)-1]
         child = part
+        loss_list = []
 
         # initial population of random bitstring
         pop = [randint(0, 2, n_bits*len(pose_bound)).tolist() for _ in range(n_pop)]
@@ -60,10 +65,13 @@ def genetic_algo(body_parts, update_parts, df, poses, bpy, scales):
                     mutation(c, r_mut)
                     children.append(c)
             pop = children
+
+            loss_list.append(best_eval)
         
         dec = decode(pose_bound, n_bits, best)
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
+        total_loss[part] = loss_list
 
 def objective_loss(pose, child, parent, update_parts, df, bpy, scales):
     # set the pose according to pose parameter

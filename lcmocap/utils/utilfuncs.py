@@ -130,5 +130,5 @@ def total_loss_plot(total_loss, max_itr):
             losses[idx] += loss
     
     sns.lineplot(x=range(max_itr), y=losses).set(title='Sum of loss each iteration',
-        xlabel='number of iteration', ylabel='total loss(radian)')
+        xlabel='number of iteration', ylabel='total loss')
     plt.show()

@@ -181,9 +181,9 @@ def run_retarget(
     '''
         Calculate new Domain of both Riggings
     '''
-    # scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
-    #                     bpy.data.objects['Boy01_Body_Geo'], 
-    #                     bpy.data.objects[config.datasets.mesh_name])
+    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
+                        bpy.data.objects['Boy01_Body_Geo'], 
+                        bpy.data.objects[config.datasets.mesh_name])
     
     # Delete mesh before Retargeting (help improve runtime)
     bpy.data.objects['Boy01_Body_Geo'].select_set(True)
@@ -260,8 +260,8 @@ def run_retarget(
     poses = dict()
     # get_pose_quaternion(body_segm, df, poses, bpy)
     # total_loss = get_pose_euler(body_segm, df, poses, bpy)   # euler rotation
-    get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
-    # get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
+    # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
+    total_loss = get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
 
     # Print pose parameter
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)
@@ -277,8 +277,6 @@ def run_retarget(
     # sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
     # plt.show()
 
-    total_loss_plot(total_loss, 30)
-
     # Export pkl
     result = {}
     result['bone_name'] = list(JOINTS)
@@ -288,6 +286,8 @@ def run_retarget(
     with open(out_path+'/pose_retarg.pkl', 'wb') as file:
         pickle.dump(result, file)
     
+    total_loss_plot(total_loss, 30)
+
     # Export FBX
     # bpy.ops.export_scene.fbx(filepath=out_path+'/retar.fbx', use_selection=False)
 
