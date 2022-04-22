@@ -4,7 +4,6 @@ import os
 import os.path as osp
 
 import numpy as np
-from psbody.mesh import Mesh
 import trimesh
 import logging
 

@@ -1,18 +1,8 @@
-from tkinter.tix import Tree
-from traceback import print_tb
-from unittest import result
-from matplotlib import markers, projections
-from matplotlib.pyplot import axis
-from mpl_toolkits.mplot3d import Axes3D
-from networkx.algorithms.cluster import triangles
 import numpy as np
 import torch
-import torch.nn as nn
 import trimesh
-import networkx as nx
 import pickle
 import matplotlib.pyplot as plt
-import pandas as pd
 import math
 import seaborn as sns
 
@@ -22,7 +12,6 @@ from loguru import logger
 from typing import Optional, Dict, Callable, Union
 from data import mesh
 from utils import (Tensor)
-from human_body_prior.tools.model_loader import load_vposer
 from shape import *
 from volume import *
 

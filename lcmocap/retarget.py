@@ -259,9 +259,9 @@ def run_retarget(
     # Try to adjust destination pose
     poses = dict()
     # get_pose_quaternion(body_segm, df, poses, bpy)
-    # total_loss = get_pose_euler(body_segm, df, poses, bpy)   # euler rotation
+    total_loss = get_pose_euler(body_segm, df, poses, bpy)   # euler rotation
     # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
-    total_loss = get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
+    # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
 
     # Print pose parameter
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)
