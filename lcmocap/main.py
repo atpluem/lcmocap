@@ -73,5 +73,7 @@ def main() -> None:
                 out_path=output_folder,
                 visualize=False)
 
+    print('Ice Coming soon')
+
 if __name__ == "__main__":
     main()
