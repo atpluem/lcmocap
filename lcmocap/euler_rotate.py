@@ -1,24 +1,31 @@
 import time
+import matplotlib.pyplot as plt
 
 from utils.utilfuncs import *
 
 def get_pose_euler(body_segm, df, poses, bpy):
     total_loss = dict()
+
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    sc = ax.scatter3D(df['dest_x'], df['dest_y'], df['dest_z'])
+    fig.show()
+    
     start = time.time()
     euler_rotation(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+\
-                   body_segm['right_arm'], df, poses, bpy, total_loss)
-    euler_rotation(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, total_loss)
-    euler_rotation(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, total_loss)
-    euler_rotation(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, total_loss)
-    euler_rotation(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, total_loss)
+                   body_segm['right_arm'], df, poses, bpy, total_loss, sc)
+    euler_rotation(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, total_loss, sc)
+    euler_rotation(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, total_loss, sc)
+    euler_rotation(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, total_loss, sc)
+    euler_rotation(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, total_loss, sc)
     stop = time.time()
     print('Take time:', stop-start)
     
     return total_loss
 
-def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss):
+def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss, sc):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
-    
+
     for part in body_parts:
         lr = 0.072 # best lr is 0.072
         state = 0
@@ -49,6 +56,10 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss):
             loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]     
             loss_list.append(sum(loss))
 
+            plt.pause(0.001)
+            sc._offsets3d = (df['dest_x'], df['dest_y'], df['dest_z'])
+            plt.draw()
+            
             if state == 0: # rotate x-axis
                 dloss = abs(loss[2] - min_loss[2])
                 if (loss[2] < min_loss[2]) and (dloss > 0.001):
@@ -113,10 +124,9 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss):
             for child in update_parts:              
                 df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
                     np.array(bpy.data.objects['DEST'].pose.bones[child].head)
-            
+        
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_euler.to_quaternion()
-
         total_loss[part] = loss_list
 
 def set_pose_euler(armature, bone_name, angle):

@@ -8,7 +8,6 @@ from typing import List, Tuple
 from loguru import logger
 from torch.utils.data import dataset
 from .mesh import MeshFolder
-from .bvh import BVHFolder
 from .fbx import FBXFolder
 from .pose_pkl import PKLFolder
 

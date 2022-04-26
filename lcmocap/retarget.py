@@ -258,7 +258,7 @@ def run_retarget(
 
     # Try to adjust destination pose
     poses = dict()
-    # get_pose_quaternion(body_segm, df, poses, bpy)
+    # total_loss = get_pose_quaternion(body_segm, df, poses, bpy)
     total_loss = get_pose_euler(body_segm, df, poses, bpy)   # euler rotation
     # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
     # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
@@ -285,8 +285,9 @@ def run_retarget(
     result['angle_bone'] = angle
     with open(out_path+'/pose_retarg.pkl', 'wb') as file:
         pickle.dump(result, file)
-    
-    total_loss_plot(total_loss, 30)
+
+    # Plot sum of loss of every joints
+    # total_loss_plot(total_loss, 30)
 
     # Export FBX
     # bpy.ops.export_scene.fbx(filepath=out_path+'/retar.fbx', use_selection=False)

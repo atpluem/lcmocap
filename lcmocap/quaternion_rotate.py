@@ -1,25 +1,33 @@
+import time
 from utils.utilfuncs import *
 
 def get_pose_quaternion(body_segm, df, poses, bpy):
-    quaternion_rotation(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+body_segm['right_arm'], df, poses, bpy)
-    quaternion_rotation(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy)
-    quaternion_rotation(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy)
-    quaternion_rotation(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy)
-    quaternion_rotation(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy)
+    total_loss = dict()
+    start = time.time()
+    quaternion_rotation(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+\
+                        body_segm['right_arm'], df, poses, bpy, total_loss)
+    quaternion_rotation(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, total_loss)
+    quaternion_rotation(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, total_loss)
+    quaternion_rotation(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, total_loss)
+    quaternion_rotation(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, total_loss)
+    stop = time.time()
+    print('Take time:', stop-start)
 
-def quaternion_rotation(body_parts, update_parts, df, poses, bpy):
+    return total_loss
+
+def quaternion_rotation(body_parts, update_parts, df, poses, bpy, total_loss):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
 
     for part in body_parts:
         min_loss3D = 0
         flag = 0
-        if part in Root:
-            continue
+        if part in Root: continue
 
         part_df = df.loc[df['joint'] == part]
         parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]] 
         print(body_parts[body_parts.index(part)-1])
         diff_axis, diff_angle = get_3D_angle_axis(part_df, parent_df)
+       
         while True:
             q = Quaternion(-diff_axis, diff_angle)
 
@@ -50,5 +58,6 @@ def quaternion_rotation(body_parts, update_parts, df, poses, bpy):
                 # print(loss, min_loss3D)
                 diff_angle = diff_angle - 0.01
                 flag = 1
+                
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion

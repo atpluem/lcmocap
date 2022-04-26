@@ -7,13 +7,19 @@ RUN python -m pip install bpy-2.91a0-cp37-cp37m-manylinux2014_x86_64.whl && \
     bpy_post_install && rm bpy-2.91a0-cp37-cp37m-manylinux2014_x86_64.whl
 RUN apt-get update && apt-get install libgl1 -y
 
+
 # install addition python library
 RUN python -m pip install torch opencv-python tqdm loguru omegaconf trimesh \
     scipy matplotlib seaborn networkx sklearn
+
+
+# matplotlib config (used by benchmark)
+# RUN mkdir -p /root/.config/matplotlib
+# RUN echo "backend : Agg" > /root/.config/matplotlib/matplotlibrc
+
 
 # COPY ./lcmocap ./lcmocap
 # COPY ./config_files ./config_files
 # COPY ./input ./input
 # COPY ./output ./output
-
 # CMD ["python", "lcmocap/main.py", "--config", "config_files/config.yaml"]

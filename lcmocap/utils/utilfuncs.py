@@ -1,4 +1,3 @@
-import imp
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -71,8 +70,10 @@ def get_3D_angle_axis(part_df, parent_df):
     dz = part_df['dest_z'].values - parent_df['dest_z'].values
     dest_axis = unit_vector([dx[0], dy[0], dz[0]])
     
-    axis = src_axis - dest_axis
+    # axis = Vector(dest_axis- src_axis).normalized()
+    axis = Vector(np.cross(src_axis, dest_axis)).normalized()
     angle = angle_between(src_axis, dest_axis, '3d')
+    
     return axis, angle
 
 def new_domain(src, dest, src_mesh, dest_mesh):

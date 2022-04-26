@@ -85,11 +85,6 @@ def objective_loss(pose, child, parent, update_parts, df, bpy, scales):
     part_df = df.loc[df['joint'] == child]
     parent_df = df.loc[df['joint'] == parent]
 
-    # calculate angle loss
-    src_angle = get_2D_angle(part_df, parent_df, 'src')
-    dest_angle = get_2D_angle(part_df, parent_df, 'dest')
-    loss_ang = abs(src_angle - dest_angle)
-
     # calculate loss expected position of destinstion
     expect_x = part_df['src_x'].values*scales['dest_scale'][0]/scales['src_scale'][0]
     observe_x = part_df['dest_x'].values
@@ -102,7 +97,7 @@ def objective_loss(pose, child, parent, update_parts, df, bpy, scales):
     z = abs(expect_z-observe_z)
 
     # total loss
-    loss = x+y+z #+sum(loss_ang)
+    loss = x+y+z
 
     if parent_df['joint'].values == 'spine3':
         if df.loc[df['joint'] == 'left_collar']['dest_x'].values < \
