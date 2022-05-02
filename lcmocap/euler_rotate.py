@@ -1,31 +1,37 @@
 import time
 import matplotlib.pyplot as plt
 
+from tqdm import tqdm
 from utils.utilfuncs import *
 
-def get_pose_euler(body_segm, df, poses, bpy):
+def get_pose_euler(body_segm, df, poses, bpy, visualize):
     total_loss = dict()
-
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    sc = ax.scatter3D(df['dest_x'], df['dest_y'], df['dest_z'])
-    fig.show()
     
+    # initialize visualize
+    sc = 0
+    if visualize:
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        sc = ax.scatter3D(df['dest_x'], df['dest_y'], df['dest_z'])
+        fig.show()
+    
+    # start retargeting
     start = time.time()
-    euler_rotation(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+\
-                   body_segm['right_arm'], df, poses, bpy, total_loss, sc)
-    euler_rotation(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, total_loss, sc)
-    euler_rotation(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, total_loss, sc)
-    euler_rotation(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, total_loss, sc)
-    euler_rotation(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, total_loss, sc)
-    stop = time.time()
-    print('Take time:', stop-start)
-    
+    for body_set in tqdm(body_segm, desc='Retargeting'):
+        if body_set == 'spine':
+            update_part = body_segm[body_set] + body_segm['left_arm'] + \
+                            body_segm['right_arm']
+        else: update_part = body_segm[body_set]
+        euler_rotation(body_set, body_segm[body_set], update_part, df, 
+                        poses, bpy, total_loss, sc, visualize)
+    elapsed = time.time() - start
+    tqdm.write('Retargeting done after {:.4f} seconds'.format(elapsed))
+    tqdm.write('Retargeting final loss val = {:.4f}'.format(get_sum_total_loss(total_loss)))
     return total_loss
 
-def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss, sc):
+def euler_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_loss, sc, visualize):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
-
+    stage_start = time.time()
     for part in body_parts:
         lr = 0.072 # best lr is 0.072
         state = 0
@@ -37,7 +43,6 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss, sc):
         if part in Root:
             continue
 
-        print(body_parts[body_parts.index(part)-1])
         part_df = df.loc[df['joint'] == part]
         parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
         if parent_df['dest_orien'].values == 'h':
@@ -56,9 +61,10 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss, sc):
             loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]     
             loss_list.append(sum(loss))
 
-            plt.pause(0.001)
-            sc._offsets3d = (df['dest_x'], df['dest_y'], df['dest_z'])
-            plt.draw()
+            if visualize:
+                plt.pause(0.0001)
+                sc._offsets3d = (df['dest_x'], df['dest_y'], df['dest_z'])
+                plt.draw()
             
             if state == 0: # rotate x-axis
                 dloss = abs(loss[2] - min_loss[2])
@@ -107,13 +113,11 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss, sc):
                        state = 0
                        min_loss = [10,10,10]
                     else:
-                        print('loss: ', loss)
                         break
                 elif (loss[0] > 0.35) or (loss[1] > 0.35) or (loss[2] > 0.35):
                     state = 0
                     min_loss = [10,10,10]
                 else:
-                    print('loss: ', loss)
                     break
 
             set_pose_euler(bpy.data.objects['DEST'], body_parts[body_parts.index(part)-1], 
@@ -124,14 +128,11 @@ def euler_rotation(body_parts, update_parts, df, poses, bpy, total_loss, sc):
             for child in update_parts:              
                 df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
                     np.array(bpy.data.objects['DEST'].pose.bones[child].head)
-        
+        # Get result and loss
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_euler.to_quaternion()
         total_loss[part] = loss_list
-
-def set_pose_euler(armature, bone_name, angle):
-    if armature.pose.bones[bone_name].rotation_mode != 'YZX':
-        armature.pose.bones[bone_name].rotation_mode = 'YZX'
-
-    armature.pose.bones[bone_name].rotation_euler = angle
-    # armature.pose.bones[bone_name].rotation_mode = 'QUATERNION'
+    
+    # print stage and time usage
+    elapsed = time.time() - stage_start
+    tqdm.write('Stage {:10s} done after {:.4f} seconds'.format(body_set, elapsed))

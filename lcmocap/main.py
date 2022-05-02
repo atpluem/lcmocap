@@ -1,8 +1,6 @@
-from functools import partial
 import os
 import os.path as osp
 import sys
-from numpy.lib.utils import source
 import torch
 import openpose as op
 
@@ -15,6 +13,12 @@ from retarget_mesh import run_retarget_mesh
 from retarget import run_retarget
 
 def main() -> None:
+    # Read YAML config 
+    config = parse_args()
+
+    # Initialize tqdm
+    logger.remove()
+    logger.add(lambda x: tqdm.write(x, end=''), level=config.logger_level.upper(), colorize=True)
     
     ##############################################################
     ##                     Openpose API                         ##
@@ -25,18 +29,10 @@ def main() -> None:
     ##############################################################
     ##                     Retargeting                          ##
     ##############################################################
-
-    # Read YAML config 
-    config = parse_args()
-
-    # Initialize tqdm
-    logger.remove()
-    logger.add(lambda x: tqdm.write(x, end=''), level=config.logger_level.upper(),
-                colorize=True)
-
+    
     # Defind output folder
     output_folder = osp.expanduser(osp.expandvars(config.output_folder))
-    logger.info(f'Saving output to: {output_folder}')
+    logger.info(f'Define output to: {output_folder}')
     os.makedirs(output_folder, exist_ok=True)
 
     # Build layer of template model (SMPL, SMPLX, ...)

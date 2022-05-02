@@ -21,7 +21,7 @@ coll_loss_weights:
 - 0.01
 - 1.0
 config: smplifyx/cfg_files/fit_smplx.yaml
-data_folder: ../lcmocap/input/
+data_folder: input/
 data_weights:
 - 1
 - 1
@@ -134,4 +134,4 @@ use_joints_conf: true
 use_pca: true
 use_vposer: true
 visualize: true
-vposer_ckpt: ./smplifyx/vposer/
+vposer_ckpt: smplifyx/vposer/

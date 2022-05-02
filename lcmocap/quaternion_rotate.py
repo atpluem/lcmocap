@@ -6,10 +6,10 @@ def get_pose_quaternion(body_segm, df, poses, bpy):
     start = time.time()
     quaternion_rotation(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+\
                         body_segm['right_arm'], df, poses, bpy, total_loss)
-    quaternion_rotation(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, total_loss)
-    quaternion_rotation(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, total_loss)
-    quaternion_rotation(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, total_loss)
-    quaternion_rotation(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, total_loss)
+    # quaternion_rotation(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, total_loss)
+    # quaternion_rotation(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, total_loss)
+    # quaternion_rotation(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, total_loss)
+    # quaternion_rotation(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, total_loss)
     stop = time.time()
     print('Take time:', stop-start)
 

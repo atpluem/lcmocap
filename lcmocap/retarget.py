@@ -15,7 +15,9 @@ from genetic_algo_rot import get_pose_ga_rot
 from genetic_algo import get_pose_ga
 from euler_rotate import get_pose_euler
 from quaternion_rotate import get_pose_quaternion
+from global_rotate import get_pose_glob_rotate
 from sklearn.decomposition import PCA
+from loguru import logger
 
 def run_retarget(
     config,
@@ -68,6 +70,12 @@ def run_retarget(
     'Base HumanSpine4', 'Base HumanLDigit11', 'Base HumanRDigit11', 'Base HumanNeck2', 'Base HumanLCollarbone', 'Base HumanRCollarbone',
     'Base HumanHead', 'Base HumanLUpperarm', 'Base HumanRUpperarm', 'Base HumanLForearm', 'Base HumanLForearm',
     'Base HumanLPalm', 'Base HumanRPalm']
+
+    CIALEN_JOINT_NAMES = ['CC_Base_Pelvis', 'CC_Base_L_Thigh', 'CC_Base_R_Thigh', 'CC_Base_Waist',
+    'CC_Base_L_Calf', 'CC_Base_R_Calf', 'CC_Base_Spine01', 'CC_Base_L_Foot', 'CC_Base_R_Foot',
+    'CC_Base_Spine02', 'CC_Base_L_ToeBaseShareBone', 'CC_Base_R_ToeBaseShareBone', 'CC_Base_NeckTwist01', 'CC_Base_L_Clavicle', 'CC_Base_R_Clavicle',
+    'CC_Base_Head', 'CC_Base_L_Upperarm', 'CC_Base_R_Upperarm', 'CC_Base_L_Forearm', 'CC_Base_R_Upperarm',
+    'CC_Base_L_Hand', 'CC_Base_R_Hand']
 
     JOINTS = config.datasets.joints
 
@@ -181,9 +189,9 @@ def run_retarget(
     '''
         Calculate new Domain of both Riggings
     '''
-    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
-                        bpy.data.objects['Boy01_Body_Geo'], 
-                        bpy.data.objects[config.datasets.mesh_name])
+    # scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
+    #                     bpy.data.objects['Boy01_Body_Geo'], 
+    #                     bpy.data.objects[config.datasets.mesh_name])
     
     # Delete mesh before Retargeting (help improve runtime)
     bpy.data.objects['Boy01_Body_Geo'].select_set(True)
@@ -255,12 +263,13 @@ def run_retarget(
     ##############################################################
     ##               Retargeting algorithm                      ##
     ##############################################################
-
+    
     # Try to adjust destination pose
     poses = dict()
     # total_loss = get_pose_quaternion(body_segm, df, poses, bpy)
-    total_loss = get_pose_euler(body_segm, df, poses, bpy)   # euler rotation
-    # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy)    # GA rotate
+    # total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy)
+    # total_loss = get_pose_euler(body_segm, df, poses, bpy, False)   # euler rotation
+    total_loss = get_pose_ga_rot(body_segm, df, poses, bpy, False)    # GA rotate
     # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
 
     # Print pose parameter
@@ -283,6 +292,7 @@ def run_retarget(
     result['result'] = 'Retargeting'
     result['axis_bone'] = axis
     result['angle_bone'] = angle
+    logger.info(f'Saving output to: {out_path}/pose_retarg.pkl')
     with open(out_path+'/pose_retarg.pkl', 'wb') as file:
         pickle.dump(result, file)
 

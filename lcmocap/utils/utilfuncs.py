@@ -122,6 +122,12 @@ def get_axis_angle(poses, joints):
             angle.append(0)
     return axis, angle
 
+def get_sum_total_loss(total_loss):
+    sum_loss = 0
+    for k in total_loss.keys():
+        sum_loss += total_loss[k][-1]
+    return sum_loss
+
 def total_loss_plot(total_loss, max_itr):
     losses = np.zeros((max_itr,))
 
