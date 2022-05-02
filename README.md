@@ -18,17 +18,23 @@ lcmocap
 │   ├── source
 │       ├── pose.pkl
 ```
+#### Config file
+Before fitting you must edit the ```config.yaml``` by writing rigging names that relate to the source model. 
+
 ### Fitting
 Run the following command to execute the code:
 ```
 python lcmocap/main.py --config config_files/config.yaml
 ```
-where the **output/retargeting** is the folder that contains the resulting pose
+where the **output/retargeting** is the folder that contains the resulting pose.
 
 ## Dependencies
 - [Blender Python API](https://docs.blender.org/api/current/index.html)
 - [Numpy](https://numpy.org/)
 - [Pandas](https://pandas.pydata.org/)
+
+The code has been tested with python 3.7 and Blender API 2.91 on Ubuntu 18.04.
+
 ### Alternative way
-You can using this on container by building Docker [Here](Dockerfile)
-The code has been tested with python 3.7 and Blender API 2.91 on Ubuntu 18.04
+You can using this on container by building Docker file [Here](Dockerfile).
+
