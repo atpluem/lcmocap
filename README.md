@@ -2,6 +2,8 @@
 
 ## Table of Contents
 - [Description](#description)
+  - [Data](#data)
+  - [Fitting](#fitting)
 - [Dependencies](#dependencies)
 
 ## Description
@@ -19,7 +21,38 @@ lcmocap
 │       ├── pose.pkl
 ```
 #### Config file
-Before fitting you must edit the ```config.yaml``` by writing rigging names that relate to the source model. 
+Before fitting, you must edit the ```config.yaml``` by writing rigging names that relate to the source model and mesh name. Please select only 22 riggings that are identical to the following image.
+
+<img src="./images/source_rigging.png" width="80%">\
+
+**Important!** joint names must sort like the following:
+```yaml
+datasets:
+  mesh_name: 'SMPLX-mesh-male'
+  joints:
+    - pelvis
+    - left_hip
+    - right_hip
+    - spine1
+    - left_knee
+    - right_knee
+    - spine2
+    - left_ankle
+    - right_ankle
+    - spine3
+    - left_foot
+    - right_foot
+    - neck
+    - left_collar
+    - right_collar
+    - head
+    - left_shoulder
+    - right_shoulder
+    - left_elbow
+    - right_elbow
+    - left_wrist
+    - right_wrist
+```
 
 ### Fitting
 Run the following command to execute the code:
