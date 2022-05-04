@@ -40,9 +40,9 @@ def build_dataloader(config):
         logger.info(source_std_folder)
         logger.info(target_folder)
         logger.info(pose_folder)
-        source_mesh = MeshFolder(source_folder)
-        source_std_mesh = MeshFolder(source_std_folder)
-        target_mesh = MeshFolder(target_folder)
+        # source_mesh = MeshFolder(source_folder)
+        # source_std_mesh = MeshFolder(source_std_folder)
+        # target_mesh = MeshFolder(target_folder)
         source_fbx = FBXFolder(source_folder)
         target_fbx = FBXFolder(target_folder)
         pose_pkl = PKLFolder(pose_folder)
@@ -64,7 +64,6 @@ def build_dataloader(config):
     #         'targetloader': targetloader, 'target_data': target_data}
 
     return {'src_fbx_path': source_fbx[0], 'dest_fbx_path': target_fbx[0],
-            'pose_params_path': pose_pkl[0], 'src_mesh_std': source_std_mesh[0],
-            'src_mesh': source_mesh[0], 'dest_mesh': target_mesh[0]}
+            'pose_params_path': pose_pkl[0]}
 
     

@@ -1,30 +1,42 @@
 import numpy as np
 import time
 
+from tqdm import tqdm
 from numpy.random import randint, rand
 from utils.utilfuncs import *
 
-def get_pose_ga(body_segm, df, poses, bpy, scales):
+def get_pose_ga(body_segm, df, poses, bpy, scales, visualize):
     total_loss = dict()
+    
+    # initialize visualize
+    sc = 0
+    if visualize:
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        sc = ax.scatter3D(df['dest_x'], df['dest_y'], df['dest_z'])
+        fig.show()
+    
+    # start retargeting    
     start = time.time()
-    genetic_algo(body_segm['spine'], body_segm['spine']+body_segm['left_arm']+\
-                 body_segm['right_arm'], df, poses, bpy, scales, total_loss)
-    genetic_algo(body_segm['left_arm'], body_segm['left_arm'], df, poses, bpy, scales, total_loss)
-    genetic_algo(body_segm['right_arm'], body_segm['right_arm'], df, poses, bpy, scales, total_loss)
-    genetic_algo(body_segm['left_leg'], body_segm['left_leg'], df, poses, bpy, scales, total_loss)
-    genetic_algo(body_segm['right_leg'], body_segm['right_leg'], df, poses, bpy, scales, total_loss)
-    stop = time.time()
-    print('Take time:', stop-start)
-
+    for body_set in tqdm(body_segm, desc='Retargeting'):
+        if body_set == 'spine':
+            update_part = body_segm[body_set] + body_segm['left_arm'] + \
+                            body_segm['right_arm']
+        else: update_part = body_segm[body_set]
+        genetic_algo(body_set, body_segm[body_set], update_part, df, 
+                        poses, bpy, scales, total_loss, sc, visualize)
+    elapsed = time.time() - start
+    tqdm.write('Retargeting done after {:.4f} seconds'.format(elapsed))
+    tqdm.write('Retargeting final loss val = {:.4f}'.format(get_sum_total_loss(total_loss)))
     return total_loss
 
-def genetic_algo(body_parts, update_parts, df, poses, bpy, scales, total_loss):
+def genetic_algo(body_set, body_parts, update_parts, df, poses, bpy, scales, total_loss, sc, visualize):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 
             'left_collar', 'right_collar']
     
-    for part in body_parts:
+    for part in tqdm(body_parts, desc='Stage {:10s}'.format(body_set)):
+        stage_start = time.time()
         if part in Root: continue
-        print(body_parts[body_parts.index(part)-1])
         
         pose_bound = [[-1.6, 1.6], [-1.6, 1.6], [-1.6, 1.6]]
         n_iter = 30
@@ -52,7 +64,11 @@ def genetic_algo(body_parts, update_parts, df, poses, bpy, scales, total_loss):
             for i in range(n_pop):
                 if scores[i] < best_eval:
                     best, best_eval = pop[i], scores[i]
-                    print(">%d, new best f(%s) = %f" %(gen,  decoded[i], scores[i]))
+                    # print(">%d, new best f(%s) = %f" %(gen,  decoded[i], scores[i]))
+                    if visualize:
+                        plt.pause(0.0001)
+                        sc._offsets3d = (df['dest_x'], df['dest_y'], df['dest_z'])
+                        plt.draw()
             # select parents
             selected = [selection(pop, scores) for _ in range(n_pop)]
             # create the next generation
@@ -72,6 +88,10 @@ def genetic_algo(body_parts, update_parts, df, poses, bpy, scales, total_loss):
         poses[body_parts[body_parts.index(part)-1]] = \
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
         total_loss[part] = loss_list
+
+        # print stage and time usage
+        elapsed = time.time() - stage_start
+        tqdm.write('--> {:10s} done after {:.4f} seconds'.format(part, elapsed))
 
 def objective_loss(pose, child, parent, update_parts, df, bpy, scales):
     # set the pose according to pose parameter
@@ -118,7 +138,7 @@ def objective_loss(pose, child, parent, update_parts, df, bpy, scales):
        (parent_df['dest_x'].values > part_df['dest_x'].values)):
         return 10*loss
 
-    return loss
+    return loss[0]
 
 def mutation(bitstring, r_mut):
 	for i in range(len(bitstring)):

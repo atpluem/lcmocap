@@ -43,9 +43,9 @@ def main() -> None:
     # Dataloader
     data_obj_dict = build_dataloader(config)
     ''' Load Meshs '''
-    src_mesh = data_obj_dict['src_mesh']
-    src_std_mesh = data_obj_dict['src_mesh_std']
-    dest_mesh = data_obj_dict['dest_mesh']
+    # src_mesh = data_obj_dict['src_mesh']
+    # src_std_mesh = data_obj_dict['src_mesh_std']
+    # dest_mesh = data_obj_dict['dest_mesh']
     ''' Load BVH '''
     # source_bvh = data_obj_dict['']
     ''' Load FBX '''

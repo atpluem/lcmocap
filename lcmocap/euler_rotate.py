@@ -31,8 +31,9 @@ def get_pose_euler(body_segm, df, poses, bpy, visualize):
 
 def euler_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_loss, sc, visualize):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
-    stage_start = time.time()
-    for part in body_parts:
+    
+    for part in tqdm(body_parts, desc='Stage {:10s}'.format(body_set)):
+        stage_start = time.time()
         lr = 0.072 # best lr is 0.072
         state = 0
         pose = [0,0,0]
@@ -133,6 +134,6 @@ def euler_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_los
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_euler.to_quaternion()
         total_loss[part] = loss_list
     
-    # print stage and time usage
-    elapsed = time.time() - stage_start
-    tqdm.write('Stage {:10s} done after {:.4f} seconds'.format(body_set, elapsed))
+        # print stage and time usage
+        elapsed = time.time() - stage_start
+        tqdm.write('--> {:10s} done after {:.4f} seconds'.format(part, elapsed))

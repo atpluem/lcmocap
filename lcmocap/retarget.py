@@ -189,9 +189,9 @@ def run_retarget(
     '''
         Calculate new Domain of both Riggings
     '''
-    # scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
-    #                     bpy.data.objects['Boy01_Body_Geo'], 
-    #                     bpy.data.objects[config.datasets.mesh_name])
+    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
+                        bpy.data.objects['Boy01_Body_Geo'], 
+                        bpy.data.objects[config.datasets.mesh_name])
     
     # Delete mesh before Retargeting (help improve runtime)
     bpy.data.objects['Boy01_Body_Geo'].select_set(True)
@@ -263,14 +263,14 @@ def run_retarget(
     ##############################################################
     ##               Retargeting algorithm                      ##
     ##############################################################
-    
+
     # Try to adjust destination pose
     poses = dict()
     # total_loss = get_pose_quaternion(body_segm, df, poses, bpy)
-    # total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy)
-    # total_loss = get_pose_euler(body_segm, df, poses, bpy, False)   # euler rotation
-    total_loss = get_pose_ga_rot(body_segm, df, poses, bpy, False)    # GA rotate
-    # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales)    # GA scale
+    # total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy)      # Cannot use now
+    total_loss = get_pose_euler(body_segm, df, poses, bpy, False)     # euler rotation
+    # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy, False)    # GA rotate
+    # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales, False)  # GA scale
 
     # Print pose parameter
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)

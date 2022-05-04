@@ -7,7 +7,6 @@ from utils.utilfuncs import *
 
 def get_pose_ga_rot(body_segm, df, poses, bpy, visualize):
     total_loss = dict()
-    
     # initialize visualize
     sc = 0
     if visualize:
@@ -32,8 +31,9 @@ def get_pose_ga_rot(body_segm, df, poses, bpy, visualize):
 
 def genetic_algo(body_set, body_parts, update_parts, df, poses, bpy, total_loss, sc, visualize):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
-    stage_start = time.time()
-    for part in body_parts:
+    
+    for part in tqdm(body_parts, desc='Stage {:10s}'.format(body_set)):
+        stage_start = time.time()
         if part in Root: continue
         
         pose_bound = [[-1.6, 1.6], [-1.6, 1.6], [-1.6, 1.6]]
@@ -87,9 +87,9 @@ def genetic_algo(body_set, body_parts, update_parts, df, poses, bpy, total_loss,
             bpy.data.objects['DEST'].pose.bones[body_parts[body_parts.index(part)-1]].rotation_quaternion
         total_loss[part] = loss_list
 
-    # print stage and time usage
-    elapsed = time.time() - stage_start
-    tqdm.write('Stage {:10s} done after {:.4f} seconds'.format(body_set, elapsed))
+        # print stage and time usage
+        elapsed = time.time() - stage_start
+        tqdm.write('--> {:10s} done after {:.4f} seconds'.format(part, elapsed))
 
 def objective_loss(pose, child, parent, update_parts, df, bpy):
     # set the pose according to pose parameter
