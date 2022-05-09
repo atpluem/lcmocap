@@ -1,4 +1,5 @@
 import time
+import math
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
@@ -47,31 +48,48 @@ def global_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_lo
 
     for part in tqdm(body_parts, desc='Stage {:10s}'.format(body_set)):
         stage_start = time.time()
-        lr = 0.05
+        lr = 1
         pose = 0
-        state = 0
+        state = 1
         min_loss = [10,10,10]
         direction = 1
         loss_list = []
 
         if part in Root: continue
 
+        '''
+            Global rotation
+            local z-axis -> global y-axis; +clockwise -counter_clockwise
+            local y-axis -> global z-axis; +clockwise -counter_clockwise
+            local x-axis -> global x-axis; +clockwise -counter_clockwise
+        '''
+
         while True:
             part_df = df.loc[df['joint'] == part]
             parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
-
+            
+            # Get quadrant of rigging positions
+            src_quad = get_2D_quadrant(part_df, parent_df, 'src')
+            dest_quad = get_2D_quadrant(part_df, parent_df, 'dest')
+            
+            # Get angle of joints
             src_angle = get_2D_angle(part_df, parent_df, 'src')
             dest_angle = get_2D_angle(part_df, parent_df, 'dest')
+
+            # Check quadrant
+            src_angle = convert_angle_quadrant(src_angle, src_quad)
+            dest_angle = convert_angle_quadrant(dest_angle, dest_quad)
+
             loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]     
             loss_list.append(sum(loss))
 
-            print(part, state, direction, loss, '=== min loss: ', min_loss)
+            # print(part, state, direction, loss, '=== min loss: ', min_loss)
 
             if visualize:
                 plt.pause(0.0001)
                 sc._offsets3d = (df['dest_x'], df['dest_y'], df['dest_z'])
                 plt.draw()
-            
+
             if state == 0: # rotate z-axis
                 pose, state, direction = check_state(state, loss, min_loss, lr, direction)
 
@@ -79,8 +97,8 @@ def global_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_lo
                 pose, state, direction = check_state(state, loss, min_loss, lr, direction)
 
             elif state == 2: # rotate x-axis
-                pose, state, direction = check_state(state, loss, min_loss, lr, direction)
-
+                pose, state, direction = check_state(state, loss, min_loss, lr, direction)          
+            
             if state == 3:
                 if parent_df['joint'].values == 'spine3':
                     if df.loc[df['joint'] == 'left_collar']['dest_x'].values < \
@@ -88,13 +106,13 @@ def global_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_lo
                        state = 0
                        min_loss = [10,10,10]
                     else: break
-                elif (loss[0] > 0.55) or (loss[1] > 0.55) or (loss[2] > 0.55):
+                elif (loss[0] > 0.6) or (loss[1] > 0.6) or (loss[2] > 0.6):
                     state = 0
                     min_loss = [10,10,10]
                 else: break
 
             set_pose_global(bpy.data.objects['DEST'], body_parts[body_parts.index(part)-1], bpy, state, pose)
-            # Get position of each part of body part
+            # Update coordinate of each part of rigging
             for child in update_parts:              
                 df.loc[df['joint'] == child, ['dest_x', 'dest_y', 'dest_z']] = \
                     np.array(bpy.data.objects['DEST'].pose.bones[child].head)
@@ -104,14 +122,16 @@ def global_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_lo
         total_loss[part] = loss_list
 
         # print stage and time usage
-        # elapsed = time.time() - stage_start
-        # tqdm.write('--> {:10s} done after {:.4f} seconds'.format(part, elapsed))
+        elapsed = time.time() - stage_start
+        tqdm.write('--> {:10s} done after {:.4f} seconds'.format(part, elapsed))
+        
 
 def set_pose_global(armature, bone_name, bpy, state, angle):
     armature.data.bones[bone_name].select = True
-    if state == 0: bpy.ops.transform.rotate(value=angle, orient_axis='Z', orient_type='GLOBAL')
-    elif state == 1: bpy.ops.transform.rotate(value=angle, orient_axis='Y', orient_type='GLOBAL')
-    elif state == 2: bpy.ops.transform.rotate(value=angle, orient_axis='X', orient_type='GLOBAL')
+    rad = math.radians(angle)
+    if state == 1: bpy.ops.transform.rotate(value=rad, orient_axis='Z', orient_type='GLOBAL')
+    elif state == 0: bpy.ops.transform.rotate(value=rad, orient_axis='Y', orient_type='GLOBAL')
+    elif state == 2: bpy.ops.transform.rotate(value=rad, orient_axis='X', orient_type='GLOBAL')
     armature.data.bones[bone_name].select = False
 
 def check_state(state, loss, min_loss, lr, direction):
@@ -127,3 +147,10 @@ def check_state(state, loss, min_loss, lr, direction):
         direction = 1
         state = state + 1
     return pose, state, direction
+
+def convert_angle_quadrant(angle, quad):
+    ang = angle
+    for i, axis in enumerate(quad):
+        if axis in [3, 4]:
+            ang[i] = 2*math.pi - ang[i]
+    return ang

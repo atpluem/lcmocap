@@ -52,6 +52,21 @@ def get_2D_angle(part_df, parent_df, targ):
                      angle_between([dx[0], dz[0]], [1,0]),
                      angle_between([dz[0], dy[0]], [1,0])])
 
+def quadrant(vec):
+    if vec[0] >= 0 and vec[1] >= 0: return 1
+    elif vec[0] < 0 and vec[1] >= 0: return 2
+    elif vec[0] < 0 and vec[1] < 0: return 3
+    elif vec[0] >= 0 and vec[1] < 0: return 4
+
+def get_2D_quadrant(part_df, parent_df, targ):
+    dx = part_df[targ+'_x'].values - parent_df[targ+'_x'].values
+    dy = part_df[targ+'_y'].values - parent_df[targ+'_y'].values
+    dz = part_df[targ+'_z'].values - parent_df[targ+'_z'].values
+
+    return np.array([quadrant([dx[0], dy[0]]),
+                    quadrant([dx[0], dz[0]]),
+                    quadrant([dz[0], dy[0]])])
+
 def get_3D_angle(part_df, parent_df, targ):
     dx = part_df[targ+'_x'].values - parent_df[targ+'_x'].values
     dy = part_df[targ+'_y'].values - parent_df[targ+'_y'].values

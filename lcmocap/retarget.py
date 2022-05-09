@@ -268,7 +268,7 @@ def run_retarget(
     # Try to adjust destination pose
     poses = dict()
     # total_loss = get_pose_quaternion(body_segm, df, poses, bpy)
-    total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy, False)      # Not working
+    total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy, False)      # Global rotation
     # total_loss = get_pose_euler(body_segm, df, poses, bpy, False)     # euler rotation
     # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy, False)    # GA rotate
     # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales, False)  # GA scale
