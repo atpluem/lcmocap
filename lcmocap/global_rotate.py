@@ -25,7 +25,6 @@ def get_pose_glob_rotate(body_segm, df, poses, bpy, visualize=False):
 
     # start retargeting
     start = time.time()
-    i=0
     for body_set in tqdm(body_segm, desc='Retargeting'):
         if body_set == 'spine':
             update_part = body_segm[body_set] + body_segm['left_arm'] + \
@@ -33,8 +32,6 @@ def get_pose_glob_rotate(body_segm, df, poses, bpy, visualize=False):
         else: update_part = body_segm[body_set]
         global_rotation(body_set, body_segm[body_set], update_part, df, 
                         poses, bpy, total_loss, sc, visualize)
-        if i == 4: break
-        i=i+1
     elapsed = time.time() - start 
 
     # Set armature back to OBJECT mode
@@ -46,7 +43,7 @@ def get_pose_glob_rotate(body_segm, df, poses, bpy, visualize=False):
 def global_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_loss, sc, visualize):
     Root = ['pelvis', 'spine1', 'left_hip', 'right_hip', 'left_collar', 'right_collar']
 
-    for part in tqdm(body_parts, desc='Stage {:10s}'.format(body_set)):
+    for part in body_parts:
         stage_start = time.time()
         lr = 1
         pose = 0
