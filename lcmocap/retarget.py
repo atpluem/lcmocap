@@ -230,6 +230,7 @@ def run_retarget(
     dest_coor = np.concatenate(list(dest_joints.values()), axis=0).reshape((-1,3))
     dest_orien = list(dest_orien.values())
 
+    # Create dataframe for rigging coordination
     df = pd.DataFrame(src_joints.keys(), columns=['joint'])
     df['src_x'] = src_coor[:,0]
     df['src_y'] = src_coor[:,1]
@@ -267,24 +268,19 @@ def run_retarget(
     # Try to adjust destination pose
     poses = dict()
     # total_loss = get_pose_quaternion(body_segm, df, poses, bpy)
-    # total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy)      # Cannot use now
-    total_loss = get_pose_euler(body_segm, df, poses, bpy, False)     # euler rotation
+    total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy, False)      # Not working
+    # total_loss = get_pose_euler(body_segm, df, poses, bpy, False)     # euler rotation
     # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy, False)    # GA rotate
     # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales, False)  # GA scale
 
-    # Print pose parameter
+    # Get axis and angle from pose parameters
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)
-    # print(axis, '\n', angle)
 
-    # Visualize
-    # fig, axes = plt.subplots(3, 2)
-    # sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
-    # sns.scatterplot(ax=axes[0,1], data=df, x='dest_x', y='dest_y', hue='part')
-    # sns.scatterplot(ax=axes[1,0], data=df, x='src_x', y='src_z', hue='part')
-    # sns.scatterplot(ax=axes[1,1], data=df, x='dest_x', y='dest_z', hue='part')
-    # sns.scatterplot(ax=axes[2,0], data=df, x='src_z', y='src_y', hue='part')
-    # sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
-    # plt.show()
+    # Visualize joint coordinates
+    # joint_coordinate_plot(df)
+
+    # Plot sum of loss of every joints
+    # total_loss_plot(total_loss, 30)
 
     # Export pkl
     result = {}
@@ -292,13 +288,9 @@ def run_retarget(
     result['result'] = 'Retargeting'
     result['axis_bone'] = axis
     result['angle_bone'] = angle
-    logger.info(f'Saving output to: {out_path}/pose_retarg.pkl')
+    logger.info(f'Saving output to: {out_path}/pose_retarget.pkl')
     with open(out_path+'/pose_retarg.pkl', 'wb') as file:
         pickle.dump(result, file)
 
-    # Plot sum of loss of every joints
-    # total_loss_plot(total_loss, 30)
-
     # Export FBX
     # bpy.ops.export_scene.fbx(filepath=out_path+'/retar.fbx', use_selection=False)
-

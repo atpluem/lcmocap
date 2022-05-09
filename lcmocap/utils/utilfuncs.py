@@ -139,3 +139,13 @@ def total_loss_plot(total_loss, max_itr):
     sns.lineplot(x=range(max_itr), y=losses).set(title='Sum of loss each iteration',
         xlabel='number of iteration', ylabel='total loss')
     plt.show()
+
+def joint_coordinate_plot(df):
+    fig, axes = plt.subplots(3, 2)
+    sns.scatterplot(ax=axes[0,0], data=df, x='src_x', y='src_y', hue='part')
+    sns.scatterplot(ax=axes[0,1], data=df, x='dest_x', y='dest_y', hue='part')
+    sns.scatterplot(ax=axes[1,0], data=df, x='src_x', y='src_z', hue='part')
+    sns.scatterplot(ax=axes[1,1], data=df, x='dest_x', y='dest_z', hue='part')
+    sns.scatterplot(ax=axes[2,0], data=df, x='src_z', y='src_y', hue='part')
+    sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
+    plt.show()
