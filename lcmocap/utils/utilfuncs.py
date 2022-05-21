@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
 
 from mathutils import Vector, Quaternion, Matrix
 
@@ -164,3 +165,26 @@ def joint_coordinate_plot(df):
     sns.scatterplot(ax=axes[2,0], data=df, x='src_z', y='src_y', hue='part')
     sns.scatterplot(ax=axes[2,1], data=df, x='dest_z', y='dest_y', hue='part')
     plt.show()
+
+def convert_angle_quadrant(angle, quad):
+    ang = angle
+    for i, axis in enumerate(quad):
+        if axis in [3, 4]:
+            ang[i] = 2*math.pi - ang[i]
+    return ang
+
+def add_end_bone(bpy, armature, end_bone, addition_bone, trans):    
+    select_one_object(bpy, armature)
+    head_coor = armature.pose.bones[end_bone].head
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    edit_bones = armature.data.edit_bones
+    b = edit_bones.new(addition_bone)
+    b.head = (head_coor[0]+trans[0], head_coor[1]+trans[1], head_coor[2]+trans[2])
+    b.tail = (head_coor[0]+trans[0], head_coor[1]+trans[1]+5, head_coor[2]+trans[2])
+    b.parent = armature.data.edit_bones['head']
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+def select_one_object(bpy, obj):
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)

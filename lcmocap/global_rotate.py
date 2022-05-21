@@ -103,7 +103,7 @@ def global_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_lo
                        state = 0
                        min_loss = [10,10,10]
                     else: break
-                elif (loss[0] > 0.6) or (loss[1] > 0.6) or (loss[2] > 0.6):
+                elif (loss[0] > 0.8) or (loss[1] > 0.8) or (loss[2] > 0.8):
                     state = 0
                     min_loss = [10,10,10]
                 else: break
@@ -133,7 +133,7 @@ def set_pose_global(armature, bone_name, bpy, state, angle):
 
 def check_state(state, loss, min_loss, lr, direction):
     dloss = abs(loss[state] - min_loss[state])
-    if (loss[state] < min_loss[state]) and (dloss > 0.001):
+    if (loss[state] <= min_loss[state]) and (dloss > 0.001):
         min_loss[state] = loss[state]
         pose = direction*lr
     elif (min_loss[state] > 0.1) and (dloss > 0.001):

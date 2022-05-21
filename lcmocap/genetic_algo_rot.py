@@ -103,9 +103,17 @@ def objective_loss(pose, child, parent, update_parts, df, bpy):
     part_df = df.loc[df['joint'] == child]
     parent_df = df.loc[df['joint'] == parent]
 
+    # Get quadrant of rigging positions
+    src_quad = get_2D_quadrant(part_df, parent_df, 'src')
+    dest_quad = get_2D_quadrant(part_df, parent_df, 'dest')
+
     # calculate angle loss
     src_angle = get_2D_angle(part_df, parent_df, 'src')
     dest_angle = get_2D_angle(part_df, parent_df, 'dest')
+
+    # Check quadrant
+    src_angle = convert_angle_quadrant(src_angle, src_quad)
+    dest_angle = convert_angle_quadrant(dest_angle, dest_quad)
     loss_ang = abs(src_angle - dest_angle)
     loss = sum(loss_ang)
 
@@ -114,19 +122,19 @@ def objective_loss(pose, child, parent, update_parts, df, bpy):
            df.loc[df['joint'] == 'right_collar']['dest_x'].values:
            return 10*loss
 
-    if ((parent_df['src_y'].values > part_df['src_y'].values) and \
-       (parent_df['dest_y'].values < part_df['dest_y'].values)) or \
-       ((parent_df['src_y'].values < part_df['src_y'].values) and \
-       (parent_df['dest_y'].values > part_df['dest_y'].values)) or \
-       ((parent_df['src_z'].values > part_df['src_z'].values) and \
-       (parent_df['dest_z'].values < part_df['dest_z'].values)) or \
-       ((parent_df['src_z'].values < part_df['src_z'].values) and \
-       (parent_df['dest_z'].values > part_df['dest_z'].values)) or \
-       ((parent_df['src_x'].values > part_df['src_x'].values) and \
-       (parent_df['dest_x'].values < part_df['dest_x'].values)) or \
-       ((parent_df['src_x'].values < part_df['src_x'].values) and \
-       (parent_df['dest_x'].values > part_df['dest_x'].values)):
-        return 10*loss
+    # if ((parent_df['src_y'].values > part_df['src_y'].values) and \
+    #    (parent_df['dest_y'].values < part_df['dest_y'].values)) or \
+    #    ((parent_df['src_y'].values < part_df['src_y'].values) and \
+    #    (parent_df['dest_y'].values > part_df['dest_y'].values)) or \
+    #    ((parent_df['src_z'].values > part_df['src_z'].values) and \
+    #    (parent_df['dest_z'].values < part_df['dest_z'].values)) or \
+    #    ((parent_df['src_z'].values < part_df['src_z'].values) and \
+    #    (parent_df['dest_z'].values > part_df['dest_z'].values)) or \
+    #    ((parent_df['src_x'].values > part_df['src_x'].values) and \
+    #    (parent_df['dest_x'].values < part_df['dest_x'].values)) or \
+    #    ((parent_df['src_x'].values < part_df['src_x'].values) and \
+    #    (parent_df['dest_x'].values > part_df['dest_x'].values)):
+    #     return 10*loss
 
     return loss
 

@@ -186,18 +186,20 @@ def run_retarget(
             src_joints[bone.name] = np.array(bpy.data.objects['SRC'].pose.bones[bone.name].head)
             part_idx = part_idx + 1
 
-    '''
-        Calculate new Domain of both Riggings
-    '''
-    scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
-                        bpy.data.objects['Boy01_Body_Geo'], 
-                        bpy.data.objects[config.datasets.mesh_name])
+    ''' Calculate new Domain of both Riggings '''
+    # scales = new_domain(bpy.data.objects['SRC'], bpy.data.objects['DEST'],
+    #                     bpy.data.objects['Boy01_Body_Geo'], 
+    #                     bpy.data.objects[config.datasets.mesh_name])
     
-    # Delete mesh before Retargeting (help improve runtime)
+    # Delete mesh before Retargeting (helps improve runtime)
     bpy.data.objects['Boy01_Body_Geo'].select_set(True)
     bpy.data.objects[config.datasets.mesh_name].select_set(True)
     bpy.ops.object.delete()
 
+    ''' Insert End effector bones '''
+    add_end_bone(bpy, bpy.data.objects['SRC'], 'head', 'head_front', [0,5,2])
+    add_end_bone(bpy, bpy.data.objects['DEST'], 'head', 'head_front', [0,5,2])
+    
     # Scale source armature,then initial pose of both armatures 
     body_scale = dest_joints['head'][1] / src_joints['head'][1]
     for idx, body_parts in enumerate(SMPLX_JOINT_NAMES):
@@ -212,23 +214,27 @@ def run_retarget(
         # elif dest_orien[body_parts] == 'h':
         #     poses[body_parts] = [body_pose[idx-1,0],body_pose[idx-1,1],body_pose[idx-1,2]]
         # set_pose(bpy.data.objects['DEST'], bpy.data.objects['DEST'].pose.bones[body_parts].name, poses[body_parts])
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=False)
         src_joints[body_parts] = np.array(bpy.data.objects['SRC'].pose.bones[body_parts].head)
         dest_joints[body_parts] = np.array(bpy.data.objects['DEST'].pose.bones[body_parts].head)
+
+    ''' Get position of End effector bones '''
+    src_joints['head_front'] = np.array(bpy.data.objects['SRC'].pose.bones['head_front'].head)
+    dest_joints['head_front'] = np.array(bpy.data.objects['DEST'].pose.bones['head_front'].head)
 
     ##############################################################
     ##         Create dataframe for joint's location            ##
     ##############################################################
-
+    
     # Sort joints by key
     src_joints = collections.OrderedDict(sorted(src_joints.items()))
     dest_joints = collections.OrderedDict(sorted(dest_joints.items()))
-    dest_orien = collections.OrderedDict(sorted(dest_orien.items()))
+    # dest_orien = collections.OrderedDict(sorted(dest_orien.items()))
 
     # Reshape into (N, 3)
     src_coor = np.concatenate(list(src_joints.values()), axis=0).reshape((-1,3))
     dest_coor = np.concatenate(list(dest_joints.values()), axis=0).reshape((-1,3))
-    dest_orien = list(dest_orien.values())
+    # dest_orien = list(dest_orien.values())
 
     # Create dataframe for rigging coordination
     df = pd.DataFrame(src_joints.keys(), columns=['joint'])
@@ -240,10 +246,10 @@ def run_retarget(
     df['dest_x'] = dest_coor[:,0]
     df['dest_y'] = dest_coor[:,1]
     df['dest_z'] = dest_coor[:,2]
-    df['dest_orien'] = dest_orien
+    # df['dest_orien'] = dest_orien
 
     # Define part of body
-    Spine = ['pelvis', 'spine1', 'spine2', 'spine3', 'neck', 'head']
+    Spine = ['pelvis', 'spine1', 'spine2', 'spine3', 'neck', 'head', 'head_front']
     LeftArm = ['left_collar', 'left_shoulder', 'left_elbow', 'left_wrist']
     RightArm = ['right_collar', 'right_shoulder', 'right_elbow', 'right_wrist']
     LeftLeg = ['left_hip', 'left_knee', 'left_ankle', 'left_foot']
@@ -264,14 +270,14 @@ def run_retarget(
     ##############################################################
     ##               Retargeting algorithm                      ##
     ##############################################################
-
+    
     # Try to adjust destination pose
     poses = dict()
-    # total_loss = get_pose_quaternion(body_segm, df, poses, bpy)
-    total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy, False)      # Global rotation
-    # total_loss = get_pose_euler(body_segm, df, poses, bpy, False)     # euler rotation
-    # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy, False)    # GA rotate
-    # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales, False)  # GA scale
+    # total_loss = get_pose_quaternion(body_segm, df, poses, bpy)           # Not working
+    total_loss = get_pose_glob_rotate(body_segm, df, poses, bpy, False)   # Global rotation
+    # total_loss = get_pose_euler(body_segm, df, poses, bpy, False)         # Euler rotation
+    # total_loss = get_pose_ga_rot(body_segm, df, poses, bpy, False)        # GA rotate
+    # total_loss = get_pose_ga(body_segm, df, poses, bpy, scales, False)    # GA scale
 
     # Get axis and angle from pose parameters
     axis, angle = get_axis_angle(poses, SMPLX_JOINT_NAMES)
