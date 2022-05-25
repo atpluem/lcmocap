@@ -57,8 +57,18 @@ def euler_rotation(body_set, body_parts, update_parts, df, poses, bpy, total_los
             part_df = df.loc[df['joint'] == part]
             parent_df = df.loc[df['joint'] == body_parts[body_parts.index(part)-1]]
 
+            # Get quadrant of rigging positions
+            src_quad = get_2D_quadrant(part_df, parent_df, 'src')
+            dest_quad = get_2D_quadrant(part_df, parent_df, 'dest')
+            
+            # Get angle of joints
             src_angle = get_2D_angle(part_df, parent_df, 'src')
             dest_angle = get_2D_angle(part_df, parent_df, 'dest')
+
+            # Check quadrant
+            src_angle = convert_angle_quadrant(src_angle, src_quad)
+            dest_angle = convert_angle_quadrant(dest_angle, dest_quad)
+
             loss = abs(src_angle - dest_angle) # [xy-front, xz-bottom, zy-side-right-hand]     
             loss_list.append(sum(loss))
 
